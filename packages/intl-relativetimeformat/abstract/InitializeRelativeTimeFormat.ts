@@ -1,10 +1,12 @@
 import {
-  RelativeTimeFormatInternal,
-  LocaleFieldsData,
   CanonicalizeLocaleList,
   CoerceOptionsToObject,
+  createMemoizedNumberFormat,
+  createMemoizedPluralRules,
   GetOption,
   invariant,
+  LocaleFieldsData,
+  RelativeTimeFormatInternal,
 } from '@formatjs/ecma402-abstract'
 import {ResolveLocale} from '@formatjs/intl-localematcher'
 
@@ -27,7 +29,7 @@ export function InitializeRelativeTimeFormat(
     localeData: Record<string, LocaleFieldsData | undefined>
     getDefaultLocale(): string
   }
-) {
+): Intl.RelativeTimeFormat {
   const internalSlots = getInternalSlots(rtf)
   internalSlots.initializedRelativeTimeFormat = true
   const requestedLocales = CanonicalizeLocaleList(locales)
@@ -82,8 +84,8 @@ export function InitializeRelativeTimeFormat(
   const fields = localeData[r.dataLocale]
   invariant(!!fields, `Missing locale data for ${r.dataLocale}`)
   internalSlots.fields = fields
-  internalSlots.numberFormat = new Intl.NumberFormat(locales)
-  internalSlots.pluralRules = new Intl.PluralRules(locales)
+  internalSlots.numberFormat = createMemoizedNumberFormat(locales)
+  internalSlots.pluralRules = createMemoizedPluralRules(locales)
   internalSlots.numberingSystem = nu
   return rtf
 }

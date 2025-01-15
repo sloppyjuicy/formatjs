@@ -28,7 +28,9 @@ describe('IntlMessageFormat', function () {
       date: ts,
     })
 
-    expect(output).toContain('My name is Anthony Pipkin, age 8')
+    expect(output).toMatch(
+      /My name is Anthony Pipkin, age 8, time \d{1,2}:\d{1,2}:\d{1,2} [AP]M, date \d{1,2}\/\d{1,2}\/\d{4}\./
+    )
     expect(output).toContain(new Intl.DateTimeFormat().format(ts))
   })
 
@@ -467,6 +469,24 @@ describe('IntlMessageFormat', function () {
     })
   })
 
+  describe('select message without other clause', function () {
+    const msg = '{variable, select, a {A} b {B} c {C}}'
+
+    it('should throw by default', function () {
+      expect(() => {
+        new IntlMessageFormat(msg, 'en')
+      }).toThrow(/MISSING_OTHER_CLAUSE/)
+    })
+
+    it('should not throw when requiresOtherClause is false', function () {
+      expect(() => {
+        new IntlMessageFormat(msg, 'en', undefined, {
+          requiresOtherClause: false,
+        })
+      }).not.toThrow()
+    })
+  })
+
   describe('selectordinal arguments', function () {
     const msg =
       'This is my {year, selectordinal, one{#st} two{#nd} few{#rd} other{#th}} birthday.'
@@ -890,6 +910,35 @@ describe('IntlMessageFormat', function () {
           d: new Date(0),
         })
       ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M/) // Deal w/ IE11
+      expect(
+        new IntlMessageFormat('{d, time, ::hhmmssz}', 'en-US').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmss}', 'de-DE').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}$/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmss}', 'en-US').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M$/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmssz}', 'de-DE').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[A-Z]{3}/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmssz}', 'en-US').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M(.*?)[A-Z]{3}/) // Deal w/ IE11
     })
   }
 

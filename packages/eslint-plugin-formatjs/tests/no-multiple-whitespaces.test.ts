@@ -1,17 +1,32 @@
-import noMultipleWhitespaces from '../rules/no-multiple-whitespaces'
+import {name, rule} from '../rules/no-multiple-whitespaces'
+import {
+  defineMessage,
+  dynamicMessage,
+  emptyFnCall,
+  noMatch,
+  spreadJsx,
+} from './fixtures'
 import {ruleTester} from './util'
-import {dynamicMessage, noMatch, spreadJsx, emptyFnCall} from './fixtures'
-ruleTester.run('no-multiple-whitespaces', noMultipleWhitespaces, {
+
+ruleTester.run(name, rule, {
   valid: [
-    `import {defineMessage} from 'react-intl'
-  defineMessage({
-      defaultMessage: 'a {placeholder}',
-      description: 'asd'
-  })`,
+    defineMessage,
     dynamicMessage,
     noMatch,
     spreadJsx,
     emptyFnCall,
+    {
+      code: `
+      import {defineMessage} from 'react-intl'
+      defineMessage({
+        defaultMessage: \`a {
+          b, select,
+            c {d}
+            other {e}
+        }\`
+      })
+    `,
+    },
   ],
   invalid: [
     {
@@ -19,20 +34,19 @@ ruleTester.run('no-multiple-whitespaces', noMultipleWhitespaces, {
                   {placeHolder}'})",
       errors: [
         {
-          message: 'Multiple consecutive whitespaces are not allowed',
+          messageId: 'noMultipleWhitespaces',
         },
       ],
-      output:
-        "import {defineMessage} from 'react-intl';defineMessage({defaultMessage: 'a {placeHolder}'})",
+      output: `import {defineMessage} from 'react-intl';defineMessage({defaultMessage: "a {placeHolder}"})`,
     },
     {
       code: "<FormattedMessage defaultMessage='a   thing'/>",
       errors: [
         {
-          message: 'Multiple consecutive whitespaces are not allowed',
+          messageId: 'noMultipleWhitespaces',
         },
       ],
-      output: "<FormattedMessage defaultMessage='a thing'/>",
+      output: `<FormattedMessage defaultMessage="a thing"/>`,
     },
     {
       code: `
@@ -42,14 +56,62 @@ ruleTester.run('no-multiple-whitespaces', noMultipleWhitespaces, {
               })`,
       errors: [
         {
-          message: 'Multiple consecutive whitespaces are not allowed',
+          messageId: 'noMultipleWhitespaces',
         },
       ],
       output: `
               import {defineMessage} from 'react-intl'
               defineMessage({
-                  defaultMessage: 'a {placeHolder}'
+                  defaultMessage: "a {placeHolder}"
               })`,
+    },
+    {
+      code: `
+        import {defineMessage} from 'react-intl'
+        defineMessage({
+          defaultMessage: \`hello     {a, select,
+            b {{c, plural, one {  d} other { #}}}
+            other {e}
+          }\`
+        })
+      `,
+      errors: [
+        {
+          messageId: 'noMultipleWhitespaces',
+        },
+      ],
+      output: `
+        import {defineMessage} from 'react-intl'
+        defineMessage({
+          defaultMessage: \`hello {a, select,
+            b {{c, plural, one { d} other { #}}}
+            other {e}
+          }\`
+        })
+      `,
+    },
+    // Backslash escapes in the template literals
+    {
+      code: "import {defineMessage} from 'react-intl';defineMessage({defaultMessage: `a\\\\  \\`  {placeHolder}`})",
+      errors: [
+        {
+          messageId: 'noMultipleWhitespaces',
+        },
+      ],
+      output:
+        "import {defineMessage} from 'react-intl';defineMessage({defaultMessage: `a\\\\ \\` {placeHolder}`})",
+    },
+    {
+      code: "import {defineMessage} from 'react-intl';defineMessage({defaultMessage: `<em>a  b</em>`})",
+      errors: [{messageId: 'noMultipleWhitespaces'}],
+      output:
+        "import {defineMessage} from 'react-intl';defineMessage({defaultMessage: `<em>a b</em>`})",
+    },
+    // Multi-line JSX attribute
+    {
+      code: `<FormattedMessage defaultMessage="a\n  b" />`,
+      errors: [{messageId: 'noMultipleWhitespaces'}],
+      output: `<FormattedMessage defaultMessage="a b" />`,
     },
   ],
 })

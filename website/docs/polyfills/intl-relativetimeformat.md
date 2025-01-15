@@ -47,13 +47,13 @@ This package requires the following capabilities:
 
 ## Usage
 
-### Via polyfill.io
+### Via polyfill-fastly.io
 
-You can use [polyfill.io URL Builder](https://polyfill.io/v3/url-builder/) to create a polyfill script tag for `Intl.RelativeTimeFormat`. By default the created URL does not come with any locale data. In order to add locale data, append `Intl.RelativeTimeFormat.~locale.<locale>` to your list of features. For example:
+You can use [polyfill-fastly.io URL Builder](https://polyfill-fastly.io/) to create a polyfill script tag for `Intl.RelativeTimeFormat`. By default the created URL does not come with any locale data. In order to add locale data, append `Intl.RelativeTimeFormat.~locale.<locale>` to your list of features. For example:
 
 ```html
 <!-- Polyfill Intl.RelativeTimeFormat, its dependencies & `en` locale data -->
-<script src="https://polyfill.io/v3/polyfill.min.js?features=Intl.RelativeTimeFormat,Intl.RelativeTimeFormat.~locale.en"></script>
+<script src="https://polyfill-fastly.io/v3/polyfill.min.js?features=Intl.RelativeTimeFormat,Intl.RelativeTimeFormat.~locale.en"></script>
 ```
 
 ### Simple
@@ -68,20 +68,16 @@ import '@formatjs/intl-relativetimeformat/locale-data/en' // locale-data for en
 ```tsx
 import {shouldPolyfill} from '@formatjs/intl-relativetimeformat/should-polyfill'
 async function polyfill(locale: string) {
-  if (!shouldPolyfill(locale)) {
+  const unsupportedLocale = shouldPolyfill(locale)
+  // This locale is supported
+  if (!unsupportedLocale) {
     return
   }
   // Load the polyfill 1st BEFORE loading data
-  await import('@formatjs/intl-relativetimeformat/polyfill')
-
-  switch (locale) {
-    default:
-      await import('@formatjs/intl-relativetimeformat/locale-data/en')
-      break
-    case 'fr':
-      await import('@formatjs/intl-relativetimeformat/locale-data/fr')
-      break
-  }
+  await import('@formatjs/intl-relativetimeformat/polyfill-force')
+  await import(
+    `@formatjs/intl-relativetimeformat/locale-data/${unsupportedLocale}`
+  )
 }
 ```
 

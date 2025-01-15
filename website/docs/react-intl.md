@@ -22,17 +22,14 @@ React Intl relies on these `Intl` APIs:
 
 If you need to support older browsers, we recommend you do the following:
 
-1. Polyfill `Intl.NumberFormat` with [`@formatjs/intl-numberformat`](polyfills/intl-numberformat.md).
-2. Polyfill `Intl.DateTimeFormat` with [`@formatjs/intl-datetimeformat`](polyfills/intl-datetimeformat.md)
-3. If you're supporting browsers that do not have [`Intl.PluralRules`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/PluralRules) (e.g IE11 & Safari 12-), include this [polyfill](polyfills/intl-pluralrules.md) in your build.
+1. If you're supporting browsers that do not have `Intl`, include this [polyfill](polyfills/intl-getcanonicallocales.md) in your build.
+2. Polyfill `Intl.NumberFormat` with [`@formatjs/intl-numberformat`](polyfills/intl-numberformat.md).
+3. Polyfill `Intl.DateTimeFormat` with [`@formatjs/intl-datetimeformat`](polyfills/intl-datetimeformat.md)
+4. If you're supporting browsers that do not have [`Intl.PluralRules`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/PluralRules) (e.g IE11 & Safari 12-), include this [polyfill](polyfills/intl-pluralrules.md) in your build.
 
-4. If you're supporting browsers that do not have [Intl.RelativeTimeFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RelativeTimeFormat) (e.g IE11, Edge, Safari 12-), include this [polyfill](polyfills/intl-relativetimeformat.md) in your build along with individual CLDR data for each locale you support.
+5. If you're supporting browsers that do not have [Intl.RelativeTimeFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RelativeTimeFormat) (e.g IE11, Edge, Safari 12-), include this [polyfill](polyfills/intl-relativetimeformat.md) in your build along with individual CLDR data for each locale you support.
 
-5. If you need `Intl.DisplayNames`, include this [polyfill](polyfills/intl-displaynames.md) in your build along with individual CLDR data for each locale you support.
-
-### Browser
-
-We officially support IE11 along with 2 most recent versions of Edge, Chrome & Firefox.
+6. If you need `Intl.DisplayNames`, include this [polyfill](polyfills/intl-displaynames.md) in your build along with individual CLDR data for each locale you support.
 
 ### Node.js
 
@@ -60,13 +57,6 @@ If you're using `react-intl` in React Native, make sure your runtime has built-i
 #### React Native on iOS
 
 If you cannot use the Intl variant of JSC (e.g on iOS), follow the instructions in [Runtime Requirements](#runtime-requirements) to polyfill those APIs accordingly.
-
-## Experimental Intl Features
-
-FormatJS also provides types & polyfill for the following Intl API proposals:
-
-- NumberFormat: [polyfill](polyfills/intl-numberformat.md) & [spec](https://tc39.es/ecma402/)
-- DisplayNames: [polyfill](polyfills/intl-displaynames.md) & [spec](https://tc39.es/proposal-intl-displaynames/)
 
 ## The `react-intl` Package
 
@@ -281,6 +271,42 @@ There are a few API layers that React Intl provides and is built on. When using 
 `react-intl` is written in TypeScript, thus having 1st-class TS support.
 
 In order to use `react-intl` in TypeScript, make sure your `compilerOptions`'s `lib` config include `["esnext.intl", "es2017.intl", "es2018.intl"]`.
+
+## Typing message IDs and locale
+
+By default, the type for the `id` prop of `<FormattedMessage>` and `formatMessage` is `string`. However, you can set a more restrictive type to get autocomplete and error checking. In order to do this, override the following global namespace with the union type of all of your message IDs. You can do this by including the following somewhere in your code:
+
+```ts
+declare global {
+  namespace FormatjsIntl {
+    interface Message {
+      ids: keyof typeof messages
+    }
+  }
+}
+```
+
+Where `messages` is the object you would normally pass to `<IntlProvider>`, and would look something like:
+
+```ts
+const messages = {
+  greeting: 'Hello',
+  planet: 'World',
+  // ...
+}
+```
+
+You can also override the following global to use a custom type for locale
+
+```ts
+declare global {
+  namespace FormatjsIntl {
+    interface IntlConfig {
+      locale: 'en' | 'fr'
+    }
+  }
+}
+```
 
 # Advanced Usage
 

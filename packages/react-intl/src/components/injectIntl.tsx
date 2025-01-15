@@ -1,22 +1,40 @@
-import * as React from 'react'
 import hoistNonReactStatics from 'hoist-non-react-statics'
-import {invariantIntlContext} from '../utils'
+import * as React from 'react'
 import {IntlShape} from '../types'
+import {invariantIntlContext} from '../utils'
 
 function getDisplayName(Component: React.ComponentType<any>): string {
   return Component.displayName || Component.name || 'Component'
 }
 
-// TODO: We should provide initial value here
-const IntlContext = React.createContext<IntlShape>(null as any)
+declare global {
+  interface Window {
+    /**
+     * Set this to `true` prior to mounting to bypass using a globally-exposed context.
+     */
+    __REACT_INTL_BYPASS_GLOBAL_CONTEXT__: boolean | undefined
+
+    __REACT_INTL_CONTEXT__: React.Context<IntlShape> | undefined
+  }
+}
+
+// This is primarily dealing with packaging systems where multiple copies of react-intl
+// might exist
+const IntlContext =
+  typeof window !== 'undefined' && !window.__REACT_INTL_BYPASS_GLOBAL_CONTEXT__
+    ? window.__REACT_INTL_CONTEXT__ ||
+      (window.__REACT_INTL_CONTEXT__ = React.createContext<IntlShape>(
+        null as any
+      ))
+    : React.createContext<IntlShape>(null as any)
 const {Consumer: IntlConsumer, Provider: IntlProvider} = IntlContext
 
-export const Provider = IntlProvider
-export const Context = IntlContext
+export const Provider: React.Provider<IntlShape> = IntlProvider
+export const Context: React.Context<IntlShape> = IntlContext
 
 export interface Opts<
   IntlPropName extends string = 'intl',
-  ForwardRef extends boolean = false
+  ForwardRef extends boolean = false,
 > {
   intlPropName?: IntlPropName
   forwardRef?: ForwardRef
@@ -27,7 +45,22 @@ export type WrappedComponentProps<IntlPropName extends string = 'intl'> = {
   [k in IntlPropName]: IntlShape
 }
 
-export type WithIntlProps<P> = Omit<P, keyof WrappedComponentProps> & {
+/**
+ * Utility type to help deal with the fact that `Omit` doesn't play well with unions:
+ * - https://github.com/microsoft/TypeScript/issues/31501
+ * - https://github.com/microsoft/TypeScript/issues/28339
+ *
+ * @example
+ *      DistributedOmit<X | Y, K>  -->  Omit<X, K> | Omit<Y, K>
+ */
+export type DistributedOmit<T, K extends PropertyKey> = T extends unknown
+  ? Omit<T, K>
+  : never
+
+export type WithIntlProps<P> = DistributedOmit<
+  P,
+  keyof WrappedComponentProps
+> & {
   forwardedRef?: React.Ref<any>
 }
 
@@ -35,7 +68,7 @@ export type WithIntlProps<P> = Omit<P, keyof WrappedComponentProps> & {
 // Non ref forwarding overload
 export default function injectIntl<
   IntlPropName extends string = 'intl',
-  P extends WrappedComponentProps<IntlPropName> = WrappedComponentProps<any>
+  P extends WrappedComponentProps<IntlPropName> = WrappedComponentProps<any>,
 >(
   WrappedComponent: React.ComponentType<P>,
   options?: Opts<IntlPropName, false>
@@ -46,7 +79,7 @@ export default function injectIntl<
 export default function injectIntl<
   IntlPropName extends string = 'intl',
   P extends WrappedComponentProps<IntlPropName> = WrappedComponentProps<any>,
-  T extends React.ComponentType<P> = any
+  T extends React.ComponentType<P> = any,
 >(
   WrappedComponent: React.ComponentType<P>,
   options?: Opts<IntlPropName, true>
@@ -60,7 +93,7 @@ export default function injectIntl<
   IntlPropName extends string = 'intl',
   P extends WrappedComponentProps<IntlPropName> = WrappedComponentProps<any>,
   ForwardRef extends boolean = false,
-  T extends React.ComponentType<P> = any
+  T extends React.ComponentType<P> = any,
 >(
   WrappedComponent: React.ComponentType<P>,
   options?: Opts<IntlPropName, ForwardRef>
@@ -100,6 +133,7 @@ export default function injectIntl<
 
   if (forwardRef) {
     return hoistNonReactStatics(
+      // @ts-expect-error
       React.forwardRef<T, P>((props: P, ref) => (
         <WithIntl {...props} forwardedRef={ref} />
       )),

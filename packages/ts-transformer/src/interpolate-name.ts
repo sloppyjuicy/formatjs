@@ -1,5 +1,5 @@
-import * as path from 'path'
 import {BinaryToTextEncoding, createHash} from 'crypto'
+import * as path from 'path'
 export interface LoaderContext {
   resourceQuery?: string
   resourcePath?: string
@@ -36,7 +36,7 @@ export function interpolateName(
   loaderContext: LoaderContext,
   name: string | NameFn,
   options: Options
-) {
+): string {
   let filename
 
   const hasQuery =
@@ -66,7 +66,7 @@ export function interpolateName(
     let resourcePath = loaderContext.resourcePath
 
     if (parsed.ext) {
-      ext = parsed.ext.substr(1)
+      ext = parsed.ext.slice(1)
     }
 
     if (parsed.dir) {
@@ -79,7 +79,7 @@ export function interpolateName(
         .relative(context, resourcePath + '_')
         .replace(/\\/g, '/')
         .replace(/\.\.(\/)?/g, '_$1')
-      directory = directory.substr(0, directory.length - 1)
+      directory = directory.slice(0, -1)
     } else {
       directory = resourcePath.replace(/\\/g, '/').replace(/\.\.(\/)?/g, '_$1')
     }
@@ -97,7 +97,7 @@ export function interpolateName(
     const hashIdx = query.indexOf('#')
 
     if (hashIdx >= 0) {
-      query = query.substr(0, hashIdx)
+      query = query.slice(0, hashIdx)
     }
   }
 
@@ -109,7 +109,7 @@ export function interpolateName(
       // `hash` and `contenthash` are same in `loader-utils` context
       // let's keep `hash` for backward compatibility
       .replace(
-        /\[(?:([^:\]]+):)?(?:hash|contenthash)(?::([a-z]+\d*))?(?::(\d+))?\]/gi,
+        /\[(?:([^:\]]+):)?(?:hash|contenthash)(?::([a-z]+\d*[a-z]*))?(?::(\d+))?\]/gi,
         (_, hashType, digestType, maxLength) =>
           getHashDigest(content, hashType, digestType, parseInt(maxLength, 10))
       )

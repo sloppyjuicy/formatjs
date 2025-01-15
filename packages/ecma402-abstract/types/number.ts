@@ -1,5 +1,6 @@
-import {LDMLPluralRule} from './plural-rules'
+import Decimal from 'decimal.js'
 import {LocaleData} from './core'
+import {LDMLPluralRule} from './plural-rules'
 
 export type NumberFormatNotation =
   | 'standard'
@@ -7,10 +8,33 @@ export type NumberFormatNotation =
   | 'engineering'
   | 'compact'
 
+export type RoundingPriorityType = 'auto' | 'morePrecision' | 'lessPrecision'
+
 export type NumberFormatRoundingType =
+  | 'morePrecision'
+  | 'lessPrecision'
   | 'significantDigits'
   | 'fractionDigits'
-  | 'compactRounding'
+
+export type RoundingModeType =
+  | 'ceil'
+  | 'floor'
+  | 'expand'
+  | 'trunc'
+  | 'halfCeil'
+  | 'halfFloor'
+  | 'halfExpand'
+  | 'halfTrunc'
+  | 'halfEven'
+
+export type UnsignedRoundingModeType =
+  | 'infinity'
+  | 'zero'
+  | 'half-infinity'
+  | 'half-zero'
+  | 'half-even'
+
+export type UseGroupingType = 'min2' | 'auto' | 'always' | boolean
 
 export interface NumberFormatDigitOptions {
   minimumIntegerDigits?: number
@@ -18,17 +42,25 @@ export interface NumberFormatDigitOptions {
   maximumSignificantDigits?: number
   minimumFractionDigits?: number
   maximumFractionDigits?: number
+  roundingPriority?: RoundingPriorityType
+  roundingIncrement?: number
+  roundingMode?: RoundingModeType
+  trailingZeroDisplay?: TrailingZeroDisplay
 }
 
 export interface NumberFormatDigitInternalSlots {
   minimumIntegerDigits: number
-  minimumSignificantDigits?: number
-  maximumSignificantDigits?: number
+  minimumSignificantDigits: number
+  maximumSignificantDigits: number
   roundingType: NumberFormatRoundingType
   // These two properties are only used when `roundingType` is "fractionDigits".
-  minimumFractionDigits?: number
-  maximumFractionDigits?: number
-  notation?: NumberFormatNotation
+  minimumFractionDigits: number
+  maximumFractionDigits: number
+  notation: NumberFormatNotation
+  roundingIncrement: number
+  roundingMode: RoundingModeType
+  trailingZeroDisplay: TrailingZeroDisplay
+  roundingPriority: RoundingPriorityType
 }
 
 // All fields are optional due to de-duping
@@ -120,6 +152,10 @@ export interface SymbolsData {
   infinity: string
   nan: string
   timeSeparator: string
+  approximatelySign: string
+  rangeSign: string
+  currencyGroup?: string
+  currencyDecimal?: string
 }
 
 export interface RawNumberData {
@@ -150,8 +186,9 @@ export type LDMLPluralRuleMap<T> = Omit<
 
 export interface RawNumberFormatResult {
   formattedString: string
-  roundedNumber: number
+  roundedNumber: Decimal
   integerDigitsCount: number
+  roundingMagnitude: number
 }
 
 export type NumberFormatOptionsLocaleMatcher = 'lookup' | 'best fit'
@@ -173,7 +210,9 @@ export type NumberFormatOptionsSignDisplay =
   | 'always'
   | 'never'
   | 'exceptZero'
+  | 'negative'
 export type NumberFormatOptionsUnitDisplay = 'long' | 'short' | 'narrow'
+export type TrailingZeroDisplay = 'auto' | 'stripIfInteger'
 
 export interface NumberFormatInternal extends NumberFormatDigitInternalSlots {
   locale: string
@@ -187,15 +226,19 @@ export interface NumberFormatInternal extends NumberFormatDigitInternalSlots {
   notation: NumberFormatOptionsNotation
   compactDisplay: NumberFormatOptionsCompactDisplay
   signDisplay: NumberFormatOptionsSignDisplay
-  useGrouping: boolean
+  useGrouping?: UseGroupingType
   pl: Intl.PluralRules
   boundFormat?: Intl.NumberFormat['format']
   numberingSystem: string
   // Locale-dependent formatter data
   dataLocaleData: NumberFormatLocaleInternalData
+  roundingMode: RoundingModeType
 }
 
-export type NumberFormatOptions = Intl.NumberFormatOptions &
+export type NumberFormatOptions = Omit<
+  Intl.NumberFormatOptions,
+  'signDisplay' | 'useGrouping'
+> &
   NumberFormatDigitOptions & {
     localeMatcher?: NumberFormatOptionsLocaleMatcher
     style?: NumberFormatOptionsStyle
@@ -207,6 +250,11 @@ export type NumberFormatOptions = Intl.NumberFormatOptions &
     unit?: string
     unitDisplay?: NumberFormatOptionsUnitDisplay
     numberingSystem?: string
+    trailingZeroDisplay?: TrailingZeroDisplay
+    roundingPriority?: RoundingPriorityType
+    roundingIncrement?: number
+    roundingMode?: RoundingModeType
+    useGrouping?: UseGroupingType
   }
 
 export type ResolvedNumberFormatOptions = Intl.ResolvedNumberFormatOptions &
@@ -228,8 +276,14 @@ export type NumberFormatPartTypes =
   | 'compact'
   | 'unit'
   | 'literal'
+  | 'approximatelySign'
 
 export interface NumberFormatPart {
   type: NumberFormatPartTypes
   value: string
+  source?: string
+}
+
+export interface NumberRangeToParts extends NumberFormatPart {
+  result: string
 }

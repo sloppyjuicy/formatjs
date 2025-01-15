@@ -40,6 +40,7 @@ module.exports = {
       'polyfills',
       'polyfills/intl-datetimeformat',
       'polyfills/intl-displaynames',
+      'polyfills/intl-durationformat',
       'polyfills/intl-getcanonicallocales',
       'polyfills/intl-listformat',
       'polyfills/intl-locale',
@@ -47,6 +48,8 @@ module.exports = {
       'polyfills/intl-numberformat',
       'polyfills/intl-pluralrules',
       'polyfills/intl-relativetimeformat',
+      'polyfills/intl-segmenter',
+      'polyfills/intl-supportedvaluesof',
     ],
   },
   tooling: {
@@ -55,6 +58,7 @@ module.exports = {
       'tooling/linter',
       'tooling/babel-plugin',
       'tooling/ts-transformer',
+      'tooling/swc-plugin',
     ],
   },
 }

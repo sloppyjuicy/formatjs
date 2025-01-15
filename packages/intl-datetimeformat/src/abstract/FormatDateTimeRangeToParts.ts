@@ -1,13 +1,15 @@
+import {IntlDateTimeFormatPart} from '@formatjs/ecma402-abstract'
+import {Decimal} from 'decimal.js'
 import {FormatDateTimePatternImplDetails} from './FormatDateTimePattern'
 import {PartitionDateTimeRangePattern} from './PartitionDateTimeRangePattern'
 import {ToLocalTimeImplDetails} from './ToLocalTime'
 
 export function FormatDateTimeRangeToParts(
   dtf: Intl.DateTimeFormat,
-  x: number,
-  y: number,
+  x: Decimal,
+  y: Decimal,
   implDetails: FormatDateTimePatternImplDetails & ToLocalTimeImplDetails
-) {
+): IntlDateTimeFormatPart[] {
   const parts = PartitionDateTimeRangePattern(dtf, x, y, implDetails)
   const result = new Array(0)
   for (const part of parts) {
