@@ -1,16 +1,18 @@
+import {ResolveLocale} from '@formatjs/intl-localematcher'
+import {CanonicalizeLocaleList} from '../CanonicalizeLocaleList'
+import {CoerceOptionsToObject} from '../CoerceOptionsToObject'
+import {GetOption} from '../GetOption'
+import {GetStringOrBooleanOption} from '../GetStringOrBooleanOption'
 import {
   NumberFormatInternal,
-  NumberFormatOptions,
   NumberFormatLocaleInternalData,
+  NumberFormatOptions,
+  UseGroupingType,
 } from '../types/number'
-import {CanonicalizeLocaleList} from '../CanonicalizeLocaleList'
-import {GetOption} from '../GetOption'
-import {ResolveLocale} from '@formatjs/intl-localematcher'
-import {SetNumberFormatUnitOptions} from './SetNumberFormatUnitOptions'
+import {invariant} from '../utils'
 import {CurrencyDigits} from './CurrencyDigits'
 import {SetNumberFormatDigitOptions} from './SetNumberFormatDigitOptions'
-import {invariant} from '../utils'
-import {CoerceOptionsToObject} from '../CoerceOptionsToObject'
+import {SetNumberFormatUnitOptions} from './SetNumberFormatUnitOptions'
 
 /**
  * https://tc39.es/ecma402/#sec-initializenumberformat
@@ -34,8 +36,7 @@ export function InitializeNumberFormat(
     getDefaultLocale(): string
     currencyDigitsData: Record<string, number>
   }
-) {
-  // @ts-ignore
+): Intl.NumberFormat {
   const requestedLocales: string[] = CanonicalizeLocaleList(locales)
   const options = CoerceOptionsToObject<NumberFormatOptions>(opts)
   const opt = Object.create(null)
@@ -66,7 +67,7 @@ export function InitializeNumberFormat(
   opt.nu = numberingSystem
 
   const r = ResolveLocale(
-    availableLocales,
+    Array.from(availableLocales),
     requestedLocales,
     opt,
     // [[RelevantExtensionKeys]] slot, which is a constant
@@ -82,20 +83,8 @@ export function InitializeNumberFormat(
   internalSlots.numberingSystem = r.nu
   internalSlots.dataLocaleData = dataLocaleData
 
-  SetNumberFormatUnitOptions(nf, options, {getInternalSlots})
+  SetNumberFormatUnitOptions(internalSlots, options)
   const style = internalSlots.style
-
-  let mnfdDefault: number
-  let mxfdDefault: number
-  if (style === 'currency') {
-    const currency = internalSlots.currency
-    const cDigits = CurrencyDigits(currency!, {currencyDigitsData})
-    mnfdDefault = cDigits
-    mxfdDefault = cDigits
-  } else {
-    mnfdDefault = 0
-    mxfdDefault = style === 'percent' ? 0 : 3
-  }
 
   const notation = GetOption(
     options,
@@ -105,6 +94,18 @@ export function InitializeNumberFormat(
     'standard'
   )
   internalSlots.notation = notation
+
+  let mnfdDefault: number
+  let mxfdDefault: number
+  if (style === 'currency' && notation === 'standard') {
+    const currency = internalSlots.currency
+    const cDigits = CurrencyDigits(currency!, {currencyDigitsData})
+    mnfdDefault = cDigits
+    mxfdDefault = cDigits
+  } else {
+    mnfdDefault = 0
+    mxfdDefault = style === 'percent' ? 0 : 3
+  }
 
   SetNumberFormatDigitOptions(
     internalSlots,
@@ -121,24 +122,29 @@ export function InitializeNumberFormat(
     ['short', 'long'],
     'short'
   )
+
+  let defaultUseGrouping: UseGroupingType = 'auto'
+
   if (notation === 'compact') {
     internalSlots.compactDisplay = compactDisplay
+    defaultUseGrouping = 'min2'
   }
 
-  const useGrouping = GetOption(
+  let useGrouping = GetStringOrBooleanOption(
     options,
     'useGrouping',
-    'boolean',
-    undefined,
-    true
+    ['min2', 'auto', 'always'],
+    'always',
+    false,
+    defaultUseGrouping
   )
   internalSlots.useGrouping = useGrouping
 
-  const signDisplay = GetOption(
+  let signDisplay = GetOption(
     options,
     'signDisplay',
     'string',
-    ['auto', 'never', 'always', 'exceptZero'],
+    ['auto', 'never', 'always', 'exceptZero', 'negative'],
     'auto'
   )
   internalSlots.signDisplay = signDisplay

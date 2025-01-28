@@ -1,12 +1,14 @@
-import noOffset from '../rules/no-offset'
+import {name, rule} from '../rules/no-offset'
+import {dynamicMessage, emptyFnCall, noMatch, spreadJsx} from './fixtures'
 import {ruleTester} from './util'
-import {dynamicMessage, noMatch, spreadJsx, emptyFnCall} from './fixtures'
-ruleTester.run('no-offset', noOffset, {
+ruleTester.run(name, rule, {
   valid: [
-    `import {defineMessage} from 'react-intl'
+    {
+      code: `import {defineMessage} from 'react-intl'
   defineMessage({
       defaultMessage: '{count, plural, one {#} other {# more}}'
   })`,
+    },
     dynamicMessage,
     noMatch,
     spreadJsx,
@@ -21,19 +23,7 @@ ruleTester.run('no-offset', noOffset, {
               })`,
       errors: [
         {
-          message: 'offset are not allowed in plural rules',
-        },
-      ],
-    },
-    {
-      code: `
-              import {defineMessage} from 'react-intl'
-              defineMessage({
-                  defaultMessage: '{count, plural, offset:1 one {#} other {# more}'
-              })`,
-      errors: [
-        {
-          message: 'EXPECT_ARGUMENT_CLOSING_BRACE',
+          messageId: 'noOffset',
         },
       ],
     },

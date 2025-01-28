@@ -10,7 +10,7 @@ While you can declare your messages using only `id`s, we highly recommend declar
 3. Text styling is also dependent on the message itself. Things like truncation, capitalization... certainly affect the messages themselves.
 4. Better integrations with toolchains. Most toolchains cannot verify cross-file references to validate syntax/usage.
 
-At a high level, formatjs messages use [ICU Syntax](../core-concepts/icu-syntax.md) with a couple of enhancements common in other message format such as [Fluent](https://github.com/projectfluent/fluent.js/). This section focuses on the actual supported ways of calling `formatjs` APIs so messages can be extracted.
+At a high level, formatjs messages use [ICU Syntax](../core-concepts/icu-syntax.mdx) with a couple of enhancements common in other message format such as [Fluent](https://github.com/projectfluent/fluent.js/). This section focuses on the actual supported ways of calling `formatjs` APIs so messages can be extracted.
 
 ## Using imperative API `intl.formatMessage`
 
@@ -70,7 +70,7 @@ intl.formatMessage(message, {name: 'John'}) // My name is John
 ```
 
 :::caution
-We rely on AST to extract messages from the codebase, so make sure you call `intl.formatMessage()`, use our builtin React components, use our Vue methods or configure [additionalFunctionNames](../tooling/cli.md#--additional-function-names-comma-separated-names)/[additionalComponentNames](../tooling/cli.md#--additional-component-names-comma-separated-names) properly.
+We rely on AST to extract messages from the codebase, so make sure you call `intl.formatMessage()`, use our builtin React components, use our Vue methods or configure `--additionalFunctionNames`/`--additionalComponentNames` in our [CLI](../tooling/cli.md) properly.
 :::
 
 :::caution

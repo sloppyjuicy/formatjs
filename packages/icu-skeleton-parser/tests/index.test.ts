@@ -4,6 +4,7 @@ import {parseNumberSkeletonFromString} from '../number'
 test.each([
   `yyyy.MM.dd G 'at' HH:mm:ss zzzz`,
   `EEE, MMM d, ''yy`,
+  `EEEE, d MMMM yyyy`,
   `h:mm a`,
   ``,
 ])('case: %p', skeleton => {
@@ -12,7 +13,13 @@ test.each([
 
 test.each([
   'percent .##',
+  '.##',
+  '.##/w',
+  '.',
   '% .##',
+  '.##/@##r',
+  '.##/@##s',
+  '@ rounding-mode-floor',
   'percent .000*',
   'percent .0###',
   'percent .00/@##',
@@ -20,6 +27,7 @@ test.each([
   'percent .00/@@@@*',
   'percent scale/0.01',
   'currency/CAD .',
+  '.00/w currency/CAD',
   'currency/GBP .0*/@@@',
   'currency/GBP .00##/@@@',
   'currency/GBP .00##/@@@ unit-width-full-name',

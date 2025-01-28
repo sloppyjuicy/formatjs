@@ -1,11 +1,17 @@
-import enforceId from '../rules/enforce-id'
-import {ruleTester} from './util'
-import {noMatch, spreadJsx, emptyFnCall} from './fixtures'
-const options = [{idInterpolationPattern: '[sha512:contenthash:base64:6]'}]
-ruleTester.run('enforce-id', enforceId, {
+import {name, Option, rule} from '../rules/enforce-id'
+import {emptyFnCall, noMatch, spreadJsx} from './fixtures'
+import {ruleTester, vueRuleTester} from './util'
+const options: [Option] = [
+  {idInterpolationPattern: '[sha512:contenthash:base64:6]'},
+]
+ruleTester.run(name, rule, {
   valid: [
     {
       code: `intl.formatMessage({ id: 'j9qhn+', defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
+      options,
+    },
+    {
+      code: `intl.$t({ id: 'j9qhn+', defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
       options,
     },
     {
@@ -13,9 +19,9 @@ ruleTester.run('enforce-id', enforceId, {
       options,
     },
     `<FormattedMessage id="manual id" defaultMessage="{count, plural, one {#} other {# more}}" values={{foo: 1}} />`,
-    {code: noMatch, options},
-    {code: spreadJsx, options},
-    {code: emptyFnCall, options},
+    {code: noMatch.code, options},
+    {code: spreadJsx.code, options},
+    {code: emptyFnCall.code, options},
   ],
   invalid: [
     {
@@ -23,9 +29,12 @@ ruleTester.run('enforce-id', enforceId, {
 intl.formatMessage({ id: 'foo', defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: j9qhn+
-Actual: foo`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'j9qhn+',
+            actual: 'foo',
+          },
         },
       ],
       options,
@@ -34,10 +43,27 @@ intl.formatMessage({ id: 'j9qhn+', defaultMessage: '{count, plural, one {#} othe
     },
     {
       code: `
+intl.$t({ id: 'foo', defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
+      errors: [
+        {
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'j9qhn+',
+            actual: 'foo',
+          },
+        },
+      ],
+      options,
+      output: `
+intl.$t({ id: 'j9qhn+', defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
+    },
+    {
+      code: `
 intl.formatMessage({defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
       errors: [
         {
-          message: `id must be specified`,
+          messageId: 'enforceId',
         },
       ],
     },
@@ -46,9 +72,12 @@ intl.formatMessage({defaultMessage: '{count, plural, one {#} other {# more}}', d
 intl.formatMessage({defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: j9qhn+
-Actual: undefined`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'j9qhn+',
+            actual: 'undefined',
+          },
         },
       ],
       options,
@@ -61,9 +90,12 @@ intl.formatMessage({ id: 'bar', defaultMessage: '{aDifferentKey, plural, one {#}
 }, {foo: 1})`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: 73owpx
-Actual: bar`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: '73owpx',
+            actual: 'bar',
+          },
         },
       ],
       options,
@@ -80,9 +112,12 @@ defaultMessage="{count, plural, one {#} other {# more}}"
 />`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: /e77jM
-Actual: undefined`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: '/e77jM',
+            actual: 'undefined',
+          },
         },
       ],
       options,
@@ -101,9 +136,12 @@ const a = (
 )`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: /e77jM
-Actual: bas`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: '/e77jM',
+            actual: 'bas',
+          },
         },
       ],
       options,
@@ -121,9 +159,12 @@ const a = (
 )`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: /e77jM
-Actual: undefined`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: '/e77jM',
+            actual: 'undefined',
+          },
         },
       ],
       options,
@@ -141,9 +182,12 @@ intl.formatMessage({ id, defaultMessage: '{count, plural, one {<a>#</a>} other {
 })`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: UoHSIG
-Actual: undefined`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'UoHSIG',
+            actual: 'undefined',
+          },
         },
       ],
       options,
@@ -160,9 +204,12 @@ import { defineMessages } from 'react-intl'
 defineMessages({ example: { defaultMessage: 'example' } })`,
       errors: [
         {
-          message: `"id" does not match with hash pattern [sha512:contenthash:base64:6].
-Expected: O7Eu2j
-Actual: undefined`,
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'O7Eu2j',
+            actual: 'undefined',
+          },
         },
       ],
       options,
@@ -170,6 +217,136 @@ Actual: undefined`,
 import { defineMessages } from 'react-intl'
 
 defineMessages({ example: { defaultMessage: 'example', id: 'O7Eu2j' } })`,
+    },
+  ],
+})
+
+const optionsWithWhitelist: [Option] = [
+  {
+    idInterpolationPattern: '[sha512:contenthash:base64:6]',
+    idWhitelist: ['\\.', '^payment_.*'],
+  },
+]
+ruleTester.run(name, rule, {
+  valid: [
+    {
+      options: optionsWithWhitelist,
+      code: `
+import { defineMessages } from 'react-intl'
+defineMessages({ example: { defaultMessage: 'example1', id: 'my.custom.id' } })
+defineMessages({ example: { defaultMessage: 'example2', id: 'payment_string' } })`,
+    },
+  ],
+  invalid: [
+    {
+      code: `
+intl.formatMessage({defaultMessage: '{count, plural, one {#} other {# more}}', description: 'asd'})`,
+      errors: [
+        {
+          messageId: 'enforceIdMatchingAllowlisted',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'j9qhn+',
+            actual: 'undefined',
+            idWhitelist: '"/\\./i", "/^payment_.*/i"',
+          },
+        },
+      ],
+      options: optionsWithWhitelist,
+      output: `
+intl.formatMessage({defaultMessage: '{count, plural, one {#} other {# more}}', id: 'j9qhn+', description: 'asd'})`,
+    },
+    {
+      code: `
+intl.formatMessage({defaultMessage: "{count, plural, one {#} other {# more}}", description: "asd"})`,
+      errors: [
+        {
+          messageId: 'enforceIdMatchingAllowlisted',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'j9qhn+',
+            actual: 'undefined',
+            idWhitelist: '"/\\./i", "/^payment_.*/i"',
+          },
+        },
+      ],
+      options: optionsWithWhitelist,
+      output: `
+intl.formatMessage({defaultMessage: "{count, plural, one {#} other {# more}}", id: 'j9qhn+', description: "asd"})`,
+    },
+    {
+      code: `
+import { defineMessages } from 'react-intl'
+defineMessages({ example: { defaultMessage: 'example1', id: 'payment_string' }, example2: { defaultMessage: 'example2' }  })`,
+      options: optionsWithWhitelist,
+      errors: [
+        {
+          messageId: 'enforceIdMatchingAllowlisted',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'FnMvk8',
+            actual: 'undefined',
+            idWhitelist: '"/\\./i", "/^payment_.*/i"',
+          },
+        },
+      ],
+      output: `
+import { defineMessages } from 'react-intl'
+defineMessages({ example: { defaultMessage: 'example1', id: 'payment_string' }, example2: { defaultMessage: 'example2', id: 'FnMvk8' }  })`,
+    },
+  ],
+})
+
+vueRuleTester.run(`vue-${name}`, rule, {
+  valid: [
+    {
+      options,
+      code: `<template>
+<p>{{$formatMessage({
+    defaultMessage: 'this is default message',
+    id: 'q5HLu+'
+})}}</p></template>`,
+    },
+    {
+      options,
+      code: `<script>intl.formatMessage({
+    defaultMessage: 'this is default message',
+    id: 'p/v1z6',
+    description: 'asd'
+})</script>`,
+    },
+    {
+      options,
+      code: `<script>intl.formatMessage({
+  defaultMessage: 'this is default message' + 'vvv',
+  id: '8DyoUa',
+  description: 'asd'
+})</script>`,
+    },
+  ],
+  invalid: [
+    {
+      code: `
+      <template>
+      <p>{{$formatMessage({
+                defaultMessage: 'this is default message'
+            })}}</p></template>`,
+      options,
+      errors: [
+        {
+          messageId: 'enforceIdMatching',
+          data: {
+            idInterpolationPattern: '[sha512:contenthash:base64:6]',
+            expected: 'q5HLu+',
+            actual: 'undefined',
+          },
+        },
+      ],
+      output: `
+      <template>
+      <p>{{$formatMessage({
+                defaultMessage: 'this is default message', id: 'q5HLu+'
+            })}}</p></template>`,
     },
   ],
 })

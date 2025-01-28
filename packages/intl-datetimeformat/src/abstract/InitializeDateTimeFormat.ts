@@ -1,20 +1,21 @@
 import {
-  Formats,
-  IntlDateTimeFormatInternal,
-  DateTimeFormatLocaleInternalData,
   CanonicalizeLocaleList,
-  invariant,
-  GetOption,
-  IsValidTimeZoneName,
   CanonicalizeTimeZoneName,
+  DateTimeFormat,
+  DateTimeFormatLocaleInternalData,
+  Formats,
   GetNumberOption,
+  GetOption,
+  IntlDateTimeFormatInternal,
+  IsValidTimeZoneName,
+  invariant,
 } from '@formatjs/ecma402-abstract'
+import {ResolveLocale} from '@formatjs/intl-localematcher'
 import {BasicFormatMatcher} from './BasicFormatMatcher'
 import {BestFitFormatMatcher} from './BestFitFormatMatcher'
-import {DATE_TIME_PROPS} from './utils'
 import {DateTimeStyleFormat} from './DateTimeStyleFormat'
 import {ToDateTimeOptions} from './ToDateTimeOptions'
-import {ResolveLocale} from '@formatjs/intl-localematcher'
+import {DATE_TIME_PROPS} from './utils'
 
 function isTimeRelated(opt: Opt) {
   for (const prop of ['hour', 'minute', 'second'] as Array<
@@ -65,7 +66,7 @@ const TYPE_REGEX = /^[a-z0-9]{3,8}$/i
  * @param opts options
  */
 export function InitializeDateTimeFormat(
-  dtf: Intl.DateTimeFormat,
+  dtf: Intl.DateTimeFormat | DateTimeFormat,
   locales: string | string[] | undefined,
   opts: Intl.DateTimeFormatOptions | undefined,
   {
@@ -78,7 +79,9 @@ export function InitializeDateTimeFormat(
     tzData,
     uppercaseLinks,
   }: {
-    getInternalSlots(dtf: Intl.DateTimeFormat): IntlDateTimeFormatInternal
+    getInternalSlots(
+      dtf: DateTimeFormat | Intl.DateTimeFormat
+    ): IntlDateTimeFormatInternal
     availableLocales: Set<string>
     getDefaultLocale(): string
     getDefaultTimeZone(): string
@@ -148,10 +151,18 @@ export function InitializeDateTimeFormat(
   let {timeZone} = options
   if (timeZone !== undefined) {
     timeZone = String(timeZone)
-    if (!IsValidTimeZoneName(timeZone, {tzData, uppercaseLinks})) {
+    if (
+      !IsValidTimeZoneName(timeZone, {
+        zoneNamesFromData: Object.keys(tzData),
+        uppercaseLinks,
+      })
+    ) {
       throw new RangeError('Invalid timeZoneName')
     }
-    timeZone = CanonicalizeTimeZoneName(timeZone, {tzData, uppercaseLinks})
+    timeZone = CanonicalizeTimeZoneName(timeZone, {
+      zoneNames: Object.keys(tzData),
+      uppercaseLinks,
+    })
   } else {
     timeZone = getDefaultTimeZone()
   }
@@ -218,7 +229,14 @@ export function InitializeDateTimeFormat(
     options,
     'timeZoneName',
     'string',
-    ['short', 'long'],
+    [
+      'long',
+      'short',
+      'longOffset',
+      'shortOffset',
+      'longGeneric',
+      'shortGeneric',
+    ],
     undefined
   )
   opt.fractionalSecondDigits = GetNumberOption(
@@ -226,7 +244,6 @@ export function InitializeDateTimeFormat(
     'fractionalSecondDigits',
     1,
     3,
-    // @ts-expect-error
     undefined
   ) as 1
 
@@ -330,5 +347,5 @@ export function InitializeDateTimeFormat(
   }
   internalSlots.pattern = pattern
   internalSlots.rangePatterns = rangePatterns
-  return dtf
+  return dtf as Intl.DateTimeFormat // TODO: remove this when https://github.com/microsoft/TypeScript/pull/50402 is merged
 }

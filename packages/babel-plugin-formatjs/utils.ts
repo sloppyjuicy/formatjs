@@ -2,13 +2,13 @@ import * as t from '@babel/types'
 import {parse} from '@formatjs/icu-messageformat-parser'
 import {interpolateName} from '@formatjs/ts-transformer'
 
+import {NodePath} from '@babel/core'
 import {
-  Options,
   ExtractedMessageDescriptor,
   MessageDescriptor,
   MessageDescriptorPath,
+  Options,
 } from './types'
-import {NodePath} from '@babel/core'
 
 const DESCRIPTOR_PROPS = new Set<keyof MessageDescriptorPath>([
   'id',
@@ -27,7 +27,7 @@ function evaluatePath(path: NodePath<any>): string {
   )
 }
 
-export function getMessageDescriptorKey(path: NodePath<any>) {
+export function getMessageDescriptorKey(path: NodePath<any>): string {
   if (path.isIdentifier() || path.isJSXIdentifier()) {
     return path.node.name
   }
@@ -62,7 +62,7 @@ function getMessageDescriptorValue(
 export function createMessageDescriptor(
   propPaths: [
     NodePath<t.JSXIdentifier> | NodePath<t.Identifier>,
-    NodePath<t.StringLiteral> | NodePath<t.JSXExpressionContainer>
+    NodePath<t.StringLiteral> | NodePath<t.JSXExpressionContainer>,
   ][]
 ): MessageDescriptorPath {
   return propPaths.reduce(
@@ -92,7 +92,7 @@ export function evaluateMessageDescriptor(
   idInterpolationPattern?: string,
   overrideIdFn?: Options['overrideIdFn'],
   preserveWhitespace?: Options['preserveWhitespace']
-) {
+): MessageDescriptor {
   let id = getMessageDescriptorValue(descriptorPath.id)
   const defaultMessage = getICUMessageValue(
     descriptorPath.defaultMessage,
@@ -166,7 +166,7 @@ function getICUMessageValue(
 
     throw messagePath.buildCodeFrameError(
       '[React Intl] Message failed to parse. ' +
-        'See: https://formatjs.io/docs/core-concepts/icu-syntax' +
+        'See: https://formatjs.github.io/docs/core-concepts/icu-syntax' +
         `\n${parseError}`
     )
   }
@@ -182,14 +182,14 @@ const EXTRACTED = Symbol('FormatJSExtracted')
  * multiple plugin runs
  * @param path
  */
-export function tagAsExtracted(path: NodePath<any>) {
+export function tagAsExtracted(path: NodePath<any>): void {
   path.node[EXTRACTED] = true
 }
 /**
  * Check if a node was extracted
  * @param path
  */
-export function wasExtracted(path: NodePath<any>) {
+export function wasExtracted(path: NodePath<any>): boolean {
   return !!path.node[EXTRACTED]
 }
 
@@ -208,7 +208,7 @@ export function storeMessage(
 
   filename: string | undefined,
   messages: ExtractedMessageDescriptor[]
-) {
+): void {
   if (!id && !defaultMessage) {
     throw path.buildCodeFrameError(
       '[React Intl] Message Descriptors require an `id` or `defaultMessage`.'

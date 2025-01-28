@@ -1,3 +1,6 @@
+import {Decimal} from 'decimal.js'
+import {ZERO} from './constants'
+import {invariant} from './utils'
 /**
  * https://tc39.es/ecma262/#sec-tostring
  */
@@ -6,6 +9,7 @@ export function ToString(o: unknown): string {
   if (typeof o === 'symbol') {
     throw TypeError('Cannot convert a Symbol value to a string')
   }
+
   return String(o)
 }
 
@@ -13,43 +17,52 @@ export function ToString(o: unknown): string {
  * https://tc39.es/ecma262/#sec-tonumber
  * @param val
  */
-export function ToNumber(val: any): number {
-  if (val === undefined) {
-    return NaN
+export function ToNumber(arg: any): Decimal {
+  if (typeof arg === 'number') {
+    return new Decimal(arg)
   }
-  if (val === null) {
-    return +0
+  invariant(
+    typeof arg !== 'bigint' && typeof arg !== 'symbol',
+    'BigInt and Symbol are not supported',
+    TypeError
+  )
+  if (arg === undefined) {
+    return new Decimal(NaN)
   }
-  if (typeof val === 'boolean') {
-    return val ? 1 : +0
+  if (arg === null || arg === 0) {
+    return ZERO
   }
-  if (typeof val === 'number') {
-    return val
+  if (arg === true) {
+    return new Decimal(1)
   }
-  if (typeof val === 'symbol' || typeof val === 'bigint') {
-    throw new TypeError('Cannot convert symbol/bigint to number')
+  if (typeof arg === 'string') {
+    try {
+      return new Decimal(arg)
+    } catch (e) {
+      return new Decimal(NaN)
+    }
   }
-  return Number(val)
+  invariant(typeof arg === 'object', 'object expected', TypeError)
+  let primValue = ToPrimitive(arg, 'number')
+  invariant(typeof primValue !== 'object', 'object expected', TypeError)
+  return ToNumber(primValue)
 }
 
 /**
  * https://tc39.es/ecma262/#sec-tointeger
  * @param n
  */
-function ToInteger(n: any) {
+function ToInteger(n: any): Decimal {
   const number = ToNumber(n)
-  if (isNaN(number) || SameValue(number, -0)) {
-    return 0
+  if (number.isNaN() || number.isZero()) {
+    return ZERO
   }
-  if (isFinite(number)) {
+  if (number.isFinite()) {
     return number
   }
-  let integer = Math.floor(Math.abs(number))
-  if (number < 0) {
-    integer = -integer
-  }
-  if (SameValue(integer, -0)) {
-    return 0
+  let integer = number.abs().floor()
+  if (number.isNegative()) {
+    integer = integer.negated()
   }
   return integer
 }
@@ -58,12 +71,12 @@ function ToInteger(n: any) {
  * https://tc39.es/ecma262/#sec-timeclip
  * @param time
  */
-export function TimeClip(time: number) {
-  if (!isFinite(time)) {
-    return NaN
+export function TimeClip(time: Decimal): Decimal {
+  if (!time.isFinite()) {
+    return new Decimal(NaN)
   }
-  if (Math.abs(time) > 8.64 * 1e15) {
-    return NaN
+  if (time.abs().greaterThan(8.64 * 1e15)) {
+    return new Decimal(NaN)
   }
   return ToInteger(time)
 }
@@ -86,7 +99,7 @@ export function ToObject<T>(
  * @param x
  * @param y
  */
-export function SameValue(x: any, y: any) {
+export function SameValue(x: any, y: any): boolean {
   if (Object.is) {
     return Object.is(x, y)
   }
@@ -104,7 +117,7 @@ export function SameValue(x: any, y: any) {
  * https://www.ecma-international.org/ecma-262/11.0/index.html#sec-arraycreate
  * @param len
  */
-export function ArrayCreate(len: number) {
+export function ArrayCreate<T = any>(len: number): T[] {
   return new Array(len)
 }
 
@@ -113,7 +126,7 @@ export function ArrayCreate(len: number) {
  * @param o
  * @param prop
  */
-export function HasOwnProperty(o: object, prop: string) {
+export function HasOwnProperty(o: object, prop: string): boolean {
   return Object.prototype.hasOwnProperty.call(o, prop)
 }
 
@@ -121,7 +134,18 @@ export function HasOwnProperty(o: object, prop: string) {
  * https://www.ecma-international.org/ecma-262/11.0/index.html#sec-type
  * @param x
  */
-export function Type(x: any) {
+export function Type(
+  x: any
+):
+  | 'Null'
+  | 'Undefined'
+  | 'Object'
+  | 'Number'
+  | 'Boolean'
+  | 'String'
+  | 'Symbol'
+  | 'BigInt'
+  | undefined {
   if (x === null) {
     return 'Null'
   }
@@ -164,7 +188,7 @@ function mod(x: number, y: number): number {
  * https://tc39.es/ecma262/#eqn-Day
  * @param t
  */
-export function Day(t: number) {
+export function Day(t: number): number {
   return Math.floor(t / MS_PER_DAY)
 }
 
@@ -172,7 +196,7 @@ export function Day(t: number) {
  * https://tc39.es/ecma262/#sec-week-day
  * @param t
  */
-export function WeekDay(t: number) {
+export function WeekDay(t: number): number {
   return mod(Day(t) + 4, 7)
 }
 
@@ -180,7 +204,7 @@ export function WeekDay(t: number) {
  * https://tc39.es/ecma262/#sec-year-number
  * @param y
  */
-export function DayFromYear(y: number) {
+export function DayFromYear(y: number): number {
   return Date.UTC(y, 0) / MS_PER_DAY
 }
 
@@ -188,7 +212,7 @@ export function DayFromYear(y: number) {
  * https://tc39.es/ecma262/#sec-year-number
  * @param y
  */
-export function TimeFromYear(y: number) {
+export function TimeFromYear(y: number): number {
   return Date.UTC(y, 0)
 }
 
@@ -196,11 +220,11 @@ export function TimeFromYear(y: number) {
  * https://tc39.es/ecma262/#sec-year-number
  * @param t
  */
-export function YearFromTime(t: number) {
+export function YearFromTime(t: number): number {
   return new Date(t).getUTCFullYear()
 }
 
-export function DaysInYear(y: number) {
+export function DaysInYear(y: number): 365 | 366 {
   if (y % 4 !== 0) {
     return 365
   }
@@ -213,7 +237,7 @@ export function DaysInYear(y: number) {
   return 366
 }
 
-export function DayWithinYear(t: number) {
+export function DayWithinYear(t: number): number {
   return Day(t) - DayFromYear(YearFromTime(t))
 }
 
@@ -225,7 +249,9 @@ export function InLeapYear(t: number): 0 | 1 {
  * https://tc39.es/ecma262/#sec-month-number
  * @param t
  */
-export function MonthFromTime(t: number) {
+export function MonthFromTime(
+  t: number
+): 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 {
   const dwy = DayWithinYear(t)
   const leap = InLeapYear(t)
   if (dwy >= 0 && dwy < 31) {
@@ -267,7 +293,7 @@ export function MonthFromTime(t: number) {
   throw new Error('Invalid time')
 }
 
-export function DateFromTime(t: number) {
+export function DateFromTime(t: number): number {
   const dwy = DayWithinYear(t)
   const mft = MonthFromTime(t)
   const leap = InLeapYear(t)
@@ -317,15 +343,15 @@ const MS_PER_SECOND = 1e3
 const MS_PER_MINUTE = MS_PER_SECOND * SECONDS_PER_MINUTE
 const MS_PER_HOUR = MS_PER_MINUTE * MINUTES_PER_HOUR
 
-export function HourFromTime(t: number) {
+export function HourFromTime(t: number): number {
   return mod(Math.floor(t / MS_PER_HOUR), HOURS_PER_DAY)
 }
 
-export function MinFromTime(t: number) {
+export function MinFromTime(t: number): number {
   return mod(Math.floor(t / MS_PER_MINUTE), MINUTES_PER_HOUR)
 }
 
-export function SecFromTime(t: number) {
+export function SecFromTime(t: number): number {
   return mod(Math.floor(t / MS_PER_SECOND), SECONDS_PER_MINUTE)
 }
 
@@ -346,7 +372,7 @@ export function OrdinaryHasInstance(
   C: Object,
   O: any,
   internalSlots?: {boundTargetFunction: any}
-) {
+): boolean {
   if (!IsCallable(C)) {
     return false
   }
@@ -368,4 +394,58 @@ export function OrdinaryHasInstance(
 
 export function msFromTime(t: number): number {
   return mod(t, MS_PER_SECOND)
+}
+
+function OrdinaryToPrimitive<
+  T extends 'string' | 'number' = 'string' | 'number',
+>(O: object, hint: T): string | number | boolean | undefined | null {
+  let methodNames: Array<'toString' | 'valueOf'>
+  if (hint === 'string') {
+    methodNames = ['toString', 'valueOf']
+  } else {
+    methodNames = ['valueOf', 'toString']
+  }
+  for (const name of methodNames) {
+    const method = O[name]
+    if (IsCallable(method)) {
+      let result = method.call(O)
+      if (typeof result !== 'object') {
+        return result
+      }
+    }
+  }
+  throw new TypeError('Cannot convert object to primitive value')
+}
+
+export function ToPrimitive<
+  T extends 'string' | 'number' = 'string' | 'number',
+>(input: any, preferredType: T): string | number | boolean | undefined | null {
+  if (typeof input === 'object' && input != null) {
+    const exoticToPrim =
+      Symbol.toPrimitive in input ? input[Symbol.toPrimitive] : undefined
+    let hint
+    if (exoticToPrim !== undefined) {
+      if (preferredType === undefined) {
+        hint = 'default'
+      } else if (preferredType === 'string') {
+        hint = 'string'
+      } else {
+        invariant(
+          preferredType === 'number',
+          'preferredType must be "string" or "number"'
+        )
+        hint = 'number'
+      }
+      let result = exoticToPrim.call(input, hint)
+      if (typeof result !== 'object') {
+        return result
+      }
+      throw new TypeError('Cannot convert exotic object to primitive.')
+    }
+    if (preferredType === undefined) {
+      preferredType = 'number' as T
+    }
+    return OrdinaryToPrimitive(input, preferredType)
+  }
+  return input
 }

@@ -1,19 +1,12 @@
-import {Rule} from 'eslint'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
-import {extractMessages} from '../util'
 import {
-  parse,
-  isPluralElement,
   MessageFormatElement,
+  isPluralElement,
+  parse,
 } from '@formatjs/icu-messageformat-parser'
-
-class PluralRulesEnforcement extends Error {
-  public message: string
-  constructor(message: string) {
-    super()
-    this.message = message
-  }
-}
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
 enum LDML {
   zero = 'zero',
@@ -24,36 +17,44 @@ enum LDML {
   other = 'other',
 }
 
-function verifyAst(
-  plConfig: Record<LDML, boolean>,
-  ast: MessageFormatElement[]
-) {
+type PluralConfig = {[key in LDML]?: boolean}
+export type Options = [PluralConfig?]
+type MessageIds = 'missingPlural' | 'forbidden'
+
+function verifyAst(plConfig: PluralConfig, ast: MessageFormatElement[]) {
+  const errors: {messageId: MessageIds; data: Record<string, unknown>}[] = []
   for (const el of ast) {
     if (isPluralElement(el)) {
       const rules = Object.keys(plConfig) as Array<LDML>
       for (const rule of rules) {
         if (plConfig[rule] && !el.options[rule]) {
-          throw new PluralRulesEnforcement(`Missing plural rule "${rule}"`)
+          errors.push({messageId: 'missingPlural', data: {rule}})
         }
         if (!plConfig[rule] && el.options[rule]) {
-          throw new PluralRulesEnforcement(`Plural rule "${rule}" is forbidden`)
+          errors.push({messageId: 'forbidden', data: {rule}})
         }
       }
       const {options} = el
       for (const selector of Object.keys(options)) {
-        verifyAst(plConfig, options[selector].value)
+        errors.push(...verifyAst(plConfig, options[selector].value))
       }
     }
   }
+
+  return errors
 }
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+function checkNode(
+  context: RuleContext<MessageIds, Options>,
+  node: TSESTree.Node
+) {
+  const settings = getSettings(context)
+  const msgs = extractMessages(node, settings)
   if (!msgs.length) {
     return
   }
 
-  const plConfig: Record<keyof LDML, boolean> = context.options[0]
+  const plConfig = context.options[0]
   if (!plConfig) {
     return
   }
@@ -66,31 +67,30 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!defaultMessage || !messageNode) {
       continue
     }
-    try {
-      verifyAst(
-        context.options[0],
-        parse(defaultMessage, {
-          ignoreTag: context.settings.ignoreTag,
-        })
-      )
-    } catch (e) {
+    const errors = verifyAst(
+      plConfig,
+      parse(defaultMessage, {
+        ignoreTag: settings.ignoreTag,
+      })
+    )
+    for (const error of errors) {
       context.report({
-        node: messageNode as any,
-        message: e.message,
+        node: messageNode,
+        ...error,
       })
     }
   }
 }
 
-const rule: Rule.RuleModule = {
+export const name = 'enforce-plural-rules'
+
+export const rule: RuleModule<MessageIds, Options> = {
   meta: {
     type: 'problem',
     docs: {
       description:
         'Enforce plural rules to always specify certain categories like `one`/`other`',
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#enforce-plural-rules',
+      url: 'https://formatjs.github.io/docs/tooling/linter#enforce-plural-rules',
     },
     fixable: 'code',
     schema: [
@@ -108,13 +108,21 @@ const rule: Rule.RuleModule = {
         additionalProperties: false,
       },
     ],
+    messages: {
+      missingPlural: `Missing plural rule "{{rule}}"`,
+      forbidden: `Plural rule "{{rule}}" is forbidden`,
+    },
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -129,5 +137,3 @@ const rule: Rule.RuleModule = {
     }
   },
 }
-
-export default rule

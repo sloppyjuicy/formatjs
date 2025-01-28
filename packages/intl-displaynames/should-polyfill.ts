@@ -1,3 +1,6 @@
+import {match} from '@formatjs/intl-localematcher'
+import {supportedLocales} from './supported-locales.generated'
+
 /**
  * https://bugs.chromium.org/p/chromium/issues/detail?id=1097432
  */
@@ -39,11 +42,16 @@ function supportedLocalesOf(locale?: string | string[]) {
   )
 }
 
-export function shouldPolyfill(locale?: string | string[]) {
-  return (
-    !(Intl as any).DisplayNames ||
-    hasMissingICUBug() ||
-    hasScriptBug() ||
-    !supportedLocalesOf(locale)
-  )
+export function _shouldPolyfillWithoutLocale(): boolean {
+  return !(Intl as any).DisplayNames || hasMissingICUBug() || hasScriptBug()
+}
+
+export function shouldPolyfill(locale = 'en'): string | true | undefined {
+  try {
+    if (_shouldPolyfillWithoutLocale() || !supportedLocalesOf(locale)) {
+      return match([locale], supportedLocales, 'en')
+    }
+  } catch (e) {
+    return true
+  }
 }

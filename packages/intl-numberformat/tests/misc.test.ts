@@ -6,8 +6,10 @@ const LOCALES = [
   'en-GB',
   'da',
   'de',
+  'de-AT',
   'es',
   'fr',
+  'fr-CH',
   'id',
   'it',
   'ja',
@@ -35,7 +37,7 @@ LOCALES.forEach(locale => {
 
 // Replicate Google Chrome's behavior: when there is a compact pattern, drop the percentage sign.
 // For example, 10000 is formatted to "1M" (10000 * 100 = 1M).
-it('formats percentage with comapct notation', () => {
+it('formats percentage with compact notation', () => {
   expect(
     NumberFormat('en-BS', {
       style: 'percent',
@@ -155,6 +157,9 @@ describe('test262 examples', function () {
         compactDisplay: 'short',
       }).format(10000)
     ).toBe('+10 тис. англійських фунтів')
+  })
+
+  it('10000 currency uk scientific', function () {
     expect(
       new NumberFormat('uk', {
         style: 'currency',
@@ -165,7 +170,7 @@ describe('test262 examples', function () {
         notation: 'scientific',
         compactDisplay: 'short',
       }).format(10000)
-    ).toBe('+1,00Е4 англійського фунта')
+    ).toBe('+1Е4 англійських фунтів')
   })
 
   it('10000 currency de compactLong', function () {
@@ -182,18 +187,16 @@ describe('test262 examples', function () {
     ).toBe('10 Tausend US-Dollar')
   })
 
-  for (const [number, engineering, scientific] of tests) {
-    it(`number ${number}`, function () {
-      const nfEngineering = new NumberFormat('de-DE', {
-        notation: 'engineering',
-      })
-      expect(nfEngineering.format(+number)).toBe(engineering)
-      const nfScientific = new NumberFormat('de-DE', {
-        notation: 'scientific',
-      })
-      expect(nfScientific.format(+number)).toBe(scientific)
+  it.each(tests)(`number %s`, (number, engineering, scientific) => {
+    const nfEngineering = new NumberFormat('de-DE', {
+      notation: 'engineering',
     })
-  }
+    expect(nfEngineering.format(+number)).toBe(engineering)
+    const nfScientific = new NumberFormat('de-DE', {
+      notation: 'scientific',
+    })
+    expect(nfScientific.format(+number)).toBe(scientific)
+  })
 })
 
 // https://github.com/formatjs/formatjs/issues/1670
@@ -209,6 +212,34 @@ it('chose compact pattern with rounded number', () => {
 
   expect(nf.format(999.995)).toEqual('1.00K')
   expect(nf.format(999995000)).toEqual('1.00B')
+})
+
+describe('For wrong options NumberFormat correctly throws exception', () => {
+  it('uses an invalid value for rounding incremenet', () => {
+    const createInstance = () => new NumberFormat('en', {roundingIncrement: 3})
+
+    expect(createInstance).toThrow(
+      new RangeError(
+        `Invalid rounding increment value: 3.
+Valid values are 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000.`
+      )
+    )
+  })
+
+  it('roundingIncrement > 1 with undefined fraction digits', () => {
+    const createInstance = () =>
+      new NumberFormat('en', {
+        roundingIncrement: 2,
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 2,
+      })
+
+    expect(createInstance).toThrow(
+      new RangeError(
+        'With roundingIncrement > 1, maximumFractionDigits and minimumFractionDigits must be equal.'
+      )
+    )
+  })
 })
 
 // https://github.com/formatjs/formatjs/issues/1692
@@ -275,4 +306,61 @@ it('GH#2887', function () {
       notation: 'compact',
     }).format(30.0)
   ).toBe('€30')
+})
+
+it('correctly set default options', () => {
+  const nf = new NumberFormat('en', {minimumFractionDigits: 1})
+  expect(nf.resolvedOptions()).toEqual({
+    locale: 'en',
+    maximumFractionDigits: 3,
+    minimumFractionDigits: 1,
+    minimumIntegerDigits: 1,
+    notation: 'standard',
+    numberingSystem: 'latn',
+    roundingPriority: 'auto',
+    signDisplay: 'auto',
+    style: 'decimal',
+    useGrouping: 'auto',
+  })
+})
+
+test('#4422', () => {
+  const nf = new NumberFormat('de-AT', {
+    style: 'currency',
+    currency: 'EUR',
+  })
+  expect(nf.format(12345678)).toEqual('€ 12.345.678,00')
+})
+
+test('currencyDecimal', () => {
+  const nf = new NumberFormat('fr-CH', {
+    style: 'currency',
+    currency: 'USD',
+  })
+  expect(nf.format(12345678)).toEqual('12 345 678.00 $US')
+})
+
+test('#4678', () => {
+  const nf = new NumberFormat('en', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+    roundingMode: 'trunc',
+  })
+  expect(nf.format(1050)).toEqual('1K')
+})
+
+test('#4476', () => {
+  const formatter = new NumberFormat('zh-Hant', {
+    notation: 'compact',
+    useGrouping: 'always',
+  })
+  expect(formatter.format(1000)).toEqual('1,000')
+})
+
+test.only('#4771', function () {
+  const nf = new NumberFormat('en', {
+    style: 'currency',
+    currency: 'USD',
+  })
+  expect(nf.format('1234567891234567.35')).toEqual('$1,234,567,891,234,567.35')
 })

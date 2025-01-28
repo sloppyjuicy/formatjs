@@ -62,7 +62,7 @@ type WithIntlProps<P> = Omit<P, keyof WrappedComponentProps> & {
 
 function injectIntl<
   IntlPropName extends string = 'intl',
-  P extends WrappedComponentProps<IntlPropName> = WrappedComponentProps<any>
+  P extends WrappedComponentProps<IntlPropName> = WrappedComponentProps<any>,
 >(
   WrappedComponent: React.ComponentType<P>,
   options?: Opts<IntlPropName>
@@ -76,7 +76,7 @@ This function is exported by the `react-intl` package and is a High-Order Compon
 By default, the formatting API will be provided to the wrapped component via `props.intl`, but this can be overridden when specifying `options.intlPropName`. The value of the prop will be of type [`IntlShape`](#Intlshape), defined in the next section.
 
 ```tsx
-import React, {PropTypes} from 'react'
+import React from 'react'
 import {injectIntl, FormattedDate} from 'react-intl'
 
 interface Props {
@@ -132,11 +132,12 @@ interface IntlConfig {
   locale: string
   timeZone?: string
   formats: CustomFormats
-  textComponent?: React.ComponentType | keyof React.ReactHTML
+  textComponent?: React.ComponentType | keyof React.JSX.IntrinsicElements
   messages: Record<string, string> | Record<string, MessageFormatElement[]>
   defaultLocale: string
   defaultFormats: CustomFormats
   onError(err: string): void
+  onWarn(warning: string): void
 }
 
 interface IntlFormatters {
@@ -222,7 +223,7 @@ A map of tag to rich text formatting function. This is meant to provide a centra
 
 ```tsx
 function formatDate(
-  value: number | Date,
+  value: number | Date | string,
   options?: Intl.DateTimeFormatOptions & {format?: string}
 ): string
 ```
@@ -241,7 +242,7 @@ intl.formatDate(Date.now(), {
 
 ```tsx
 function formatTime(
-  value: number | Date,
+  value: number | Date | string,
   options?: Intl.DateTimeFormatOptions & {format?: string}
 ): string
 ```
@@ -264,18 +265,18 @@ intl.formatTime(Date.now()) /* "4:03 PM" */
 ## formatDateTimeRange
 
 :::caution browser support
-This requires stage-3 API [Intl.RelativeTimeFormat.prototype.formatRange](https://github.com/tc39/proposal-intl-DateTimeFormat-formatRange) which has limited browser support. Please use our [polyfill](../polyfills/intl-datetimeformat.md) if you plan to support them.
+This requires [Intl.DateTimeFormat.prototype.formatRange](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/formatRange) which has limited browser support. Please use our [polyfill](../polyfills/intl-datetimeformat.md) if you plan to support them.
 :::
 
 ```tsx
 function formatDateTimeRange(
-  from: number | Date,
-  to: number | Date,
+  from: number | Date | string,
+  to: number | Date | string,
   options?: Intl.DateTimeFormatOptions & {format?: string}
 ): string
 ```
 
-This function will return a formatted date/time range string
+This function will return a formatted date/time range string. Both `from` & `to` must be values which can be parsed as a date (i.e., `isFinite(new Date(value))`).
 
 It expects 2 values (a `from` Date & a `to` Date) and accepts `options` that conform to `DateTimeFormatOptions`.
 
@@ -468,7 +469,7 @@ intl.formatDisplayName('UN', {type: 'region'})
 
 ### Message Syntax
 
-String/Message formatting is a paramount feature of React Intl and it builds on [ICU Message Formatting](https://unicode-org.github.io/icu/userguide/format_parse/messages) by using the [ICU Message Syntax](../core-concepts/icu-syntax.md). This message syntax allows for simple to complex messages to be defined, translated, and then formatted at runtime.
+String/Message formatting is a paramount feature of React Intl and it builds on [ICU Message Formatting](https://unicode-org.github.io/icu/userguide/format_parse/messages) by using the [ICU Message Syntax](../core-concepts/icu-syntax.mdx). This message syntax allows for simple to complex messages to be defined, translated, and then formatted at runtime.
 
 **Simple Message:**
 
@@ -486,7 +487,7 @@ Hello, {name}, you have {itemCount, plural,
 }.
 ```
 
-**See:** The [Message Syntax Guide](../core-concepts/icu-syntax.md).
+**See:** The [Message Syntax Guide](../core-concepts/icu-syntax.mdx).
 
 ### Message Descriptor
 
@@ -534,7 +535,7 @@ function formatMessage(
     string,
     MessageFormatPrimitiveValue | React.ReactElement | FormatXMLElementFn
   >
-): string | React.ReactNodeArray
+): string | React.ReactNode[]
 ```
 
 This function will return a formatted message string. It expects a `MessageDescriptor` with at least an `id` property, and accepts a shallow `values` object which are used to fill placeholders in the message.
@@ -612,7 +613,7 @@ function defineMessages(
 function defineMessage(messageDescriptor: MessageDescriptor): MessageDescriptor
 ```
 
-These functions is exported by the `react-intl` package and is simply a _hook_ for our CLI & babel/TS plugin to use when compiling default messages defined in JavaScript source files. This function simply returns the Message Descriptor map object that's passed-in.
+These functions are exported by the `react-intl` package and are simply a _hook_ for our CLI & babel/TS plugin to use when compiling default messages defined in JavaScript source files. This function simply returns the Message Descriptor map object that's passed-in.
 
 ```ts
 import {defineMessages, defineMessage} from 'react-intl'

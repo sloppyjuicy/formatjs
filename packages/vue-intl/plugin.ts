@@ -1,8 +1,27 @@
-import {createIntl as _createIntl, IntlConfig} from '@formatjs/intl'
-import Vue from 'vue'
+import {
+  createIntl as _createIntl,
+  IntlConfig,
+  IntlFormatters,
+  IntlShape,
+} from '@formatjs/intl'
+import type {Plugin} from 'vue'
 import {intlKey} from './injection-key'
 
-export const createIntl = (options: IntlConfig): Vue.Plugin => ({
+declare module 'vue' {
+  interface ComponentCustomProperties {
+    $intl: IntlShape
+    $formatMessage: IntlFormatters['formatMessage']
+    $formatDate: IntlFormatters['formatDate']
+    $formatTime: IntlFormatters['formatTime']
+    $formatDateTimeRange: IntlFormatters['formatDateTimeRange']
+    $formatRelativeTime: IntlFormatters['formatRelativeTime']
+    $formatDisplayName: IntlFormatters['formatDisplayName']
+    $formatNumber: IntlFormatters['formatNumber']
+    $formatList: IntlFormatters['formatList']
+  }
+}
+
+export const createIntl = (options: IntlConfig): Plugin => ({
   install(app) {
     if (!options) {
       throw new Error('Missing `options` for vue-intl plugin')
@@ -17,6 +36,7 @@ export const createIntl = (options: IntlConfig): Vue.Plugin => ({
     app.config.globalProperties.$formatRelativeTime = intl.formatRelativeTime
     app.config.globalProperties.$formatDisplayName = intl.formatDisplayName
     app.config.globalProperties.$formatNumber = intl.formatNumber
+    app.config.globalProperties.$formatList = intl.formatList
 
     app.provide(intlKey, intl)
   },

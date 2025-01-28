@@ -1,25 +1,25 @@
-import {IntlCache, IntlShape, IntlConfig} from './types'
-import {createFormatters, DEFAULT_INTL_CONFIG} from './utils'
-import {InvalidConfigError, MissingDataError} from './error'
-import {formatNumber, formatNumberToParts} from './number'
-import {formatRelativeTime} from './relativeTime'
+import {MessageFormatElement} from '@formatjs/icu-messageformat-parser'
 import {
   formatDate,
+  formatDateTimeRange,
   formatDateToParts,
   formatTime,
   formatTimeToParts,
-  formatDateTimeRange,
 } from './dateTime'
-import {formatPlural} from './plural'
-import {formatMessage} from './message'
-import {formatList, formatListToParts} from './list'
 import {formatDisplayName} from './displayName'
-import {MessageFormatElement} from '@formatjs/icu-messageformat-parser'
+import {InvalidConfigError, MissingDataError} from './error'
+import {formatList, formatListToParts} from './list'
+import {formatMessage} from './message'
+import {formatNumber, formatNumberToParts} from './number'
+import {formatPlural} from './plural'
+import {formatRelativeTime} from './relativeTime'
+import {IntlCache, IntlConfig, IntlShape, ResolvedIntlConfig} from './types'
+import {createFormatters, DEFAULT_INTL_CONFIG} from './utils'
 
 export interface CreateIntlFn<
   T = string,
   C extends IntlConfig<T> = IntlConfig<T>,
-  S extends IntlShape<T> = IntlShape<T>
+  S extends IntlShape<T> = IntlShape<T>,
 > {
   (config: C, cache?: IntlCache): S
 }
@@ -34,12 +34,13 @@ function messagesContainString(
 
 function verifyConfigMessages<T = string>(config: IntlConfig<T>) {
   if (
+    config.onWarn &&
     config.defaultRichTextElements &&
     messagesContainString(config.messages || {})
   ) {
-    console.warn(`[@formatjs/intl] "defaultRichTextElements" was specified but "message" was not pre-compiled. 
+    config.onWarn(`[@formatjs/intl] "defaultRichTextElements" was specified but "message" was not pre-compiled. 
 Please consider using "@formatjs/cli" to pre-compile your messages for performance.
-For more details see https://formatjs.io/docs/getting-started/message-distribution`)
+For more details see https://formatjs.github.io/docs/getting-started/message-distribution`)
   }
 }
 
@@ -53,7 +54,7 @@ export function createIntl<T = string>(
   cache?: IntlCache
 ): IntlShape<T> {
   const formatters = createFormatters(cache)
-  const resolvedConfig = {
+  const resolvedConfig: ResolvedIntlConfig<T> = {
     ...DEFAULT_INTL_CONFIG,
     ...config,
   }
@@ -63,7 +64,7 @@ export function createIntl<T = string>(
     if (onError) {
       onError(
         new InvalidConfigError(
-          `"locale" was not configured, using "${defaultLocale}" as fallback. See https://formatjs.io/docs/react-intl/api#intlshape for more details`
+          `"locale" was not configured, using "${defaultLocale}" as fallback. See https://formatjs.github.io/docs/react-intl/api#intlshape for more details`
         )
       )
     }
@@ -76,7 +77,7 @@ export function createIntl<T = string>(
   } else if (!Intl.NumberFormat.supportedLocalesOf(locale).length && onError) {
     onError(
       new MissingDataError(
-        `Missing locale data for locale: "${locale}" in Intl.NumberFormat. Using default locale: "${defaultLocale}" as fallback. See https://formatjs.io/docs/react-intl#runtime-requirements for more details`
+        `Missing locale data for locale: "${locale}" in Intl.NumberFormat. Using default locale: "${defaultLocale}" as fallback. See https://formatjs.github.io/docs/react-intl#runtime-requirements for more details`
       )
     )
   } else if (
@@ -85,7 +86,7 @@ export function createIntl<T = string>(
   ) {
     onError(
       new MissingDataError(
-        `Missing locale data for locale: "${locale}" in Intl.DateTimeFormat. Using default locale: "${defaultLocale}" as fallback. See https://formatjs.io/docs/react-intl#runtime-requirements for more details`
+        `Missing locale data for locale: "${locale}" in Intl.DateTimeFormat. Using default locale: "${defaultLocale}" as fallback. See https://formatjs.github.io/docs/react-intl#runtime-requirements for more details`
       )
     )
   }
@@ -140,6 +141,7 @@ export function createIntl<T = string>(
       formatters.getPluralRules
     ),
     formatMessage: formatMessage.bind(null, resolvedConfig, formatters),
+    $t: formatMessage.bind(null, resolvedConfig, formatters),
     formatList: formatList.bind(null, resolvedConfig, formatters.getListFormat),
     formatListToParts: formatListToParts.bind(
       null,

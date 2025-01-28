@@ -1,8 +1,8 @@
-import enforceDefaultMessage from '../rules/enforce-default-message'
+import {rule, name, Option} from '../rules/enforce-default-message'
 import {noMatch, spreadJsx, emptyFnCall, dynamicMessage} from './fixtures'
 import {ruleTester, vueRuleTester} from './util'
 
-ruleTester.run('enforce-default-message', enforceDefaultMessage, {
+ruleTester.run(name, rule, {
   valid: [
     `import {defineMessage} from 'react-intl'
 defineMessage({
@@ -39,19 +39,7 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             })`,
       errors: [
         {
-          message: '`defaultMessage` has to be specified in message descriptor',
-        },
-      ],
-    },
-    {
-      code: `
-            import {defineMessage} from 'react-intl'
-            defineMessage({
-                description: 'this is default message'
-            })`,
-      errors: [
-        {
-          message: '`defaultMessage` has to be specified in message descriptor',
+          messageId: 'defaultMessage',
         },
       ],
     },
@@ -64,12 +52,10 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             })`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
     {
       code: `
@@ -79,12 +65,10 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             })`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
     {
       code: `
@@ -94,12 +78,10 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             })`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
     {
       code: `
@@ -108,7 +90,7 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             })`,
       errors: [
         {
-          message: '`defaultMessage` has to be specified in message descriptor',
+          messageId: 'defaultMessage',
         },
       ],
     },
@@ -122,7 +104,7 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             })`,
       errors: [
         {
-          message: '`defaultMessage` has to be specified in message descriptor',
+          messageId: 'defaultMessage',
         },
       ],
     },
@@ -132,7 +114,17 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             const a = <FormattedMessage description="this is description"/>`,
       errors: [
         {
-          message: '`defaultMessage` has to be specified in message descriptor',
+          messageId: 'defaultMessage',
+        },
+      ],
+    },
+    {
+      code: `
+            import {FormattedMessage} from 'react-intl'
+            const a = <FormattedMessage />`,
+      errors: [
+        {
+          messageId: 'defaultMessage',
         },
       ],
     },
@@ -142,7 +134,7 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             const a = <FormattedMessage description="this is description"></FormattedMessage>`,
       errors: [
         {
-          message: '`defaultMessage` has to be specified in message descriptor',
+          messageId: 'defaultMessage',
         },
       ],
     },
@@ -152,12 +144,10 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             const a = <FormattedMessage defaultMessage={defaultMessage} description="this is description"/>`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
     {
       code: `
@@ -165,12 +155,10 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             const a = <FormattedMessage defaultMessage={defaultMessage}/>`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
     {
       code: `
@@ -178,12 +166,10 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             const a = <FormattedMessage defaultMessage={\`asf \${foo}\`} description="this is description"></FormattedMessage>`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
     {
       code: `
@@ -191,17 +177,15 @@ const a = <FormattedMessage defaultMessage={'asf' + 'bar'}/>`,
             const a = <FormattedMessage defaultMessage={\`asf \${aas}\`}/>`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
   ],
 })
 
-vueRuleTester.run('vue/enforce-default-message', enforceDefaultMessage, {
+vueRuleTester.run(`vue-${name}`, rule, {
   valid: [
     `<template>
 <p>{{$formatMessage({
@@ -226,7 +210,7 @@ vueRuleTester.run('vue/enforce-default-message', enforceDefaultMessage, {
             })}}</p></template>`,
       errors: [
         {
-          message: '`defaultMessage` has to be specified in message descriptor',
+          messageId: 'defaultMessage',
         },
       ],
     },
@@ -239,12 +223,10 @@ vueRuleTester.run('vue/enforce-default-message', enforceDefaultMessage, {
             })}}</p></template>`,
       errors: [
         {
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          messageId: 'defaultMessageLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
   ],
 })

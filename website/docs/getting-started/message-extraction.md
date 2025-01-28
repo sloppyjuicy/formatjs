@@ -57,21 +57,21 @@ values={[
 <TabItem value="npm">
 
 ```sh
-npm run extract -- 'src/**/*.ts*' --out-file lang/en.json --id-interpolation-pattern '[sha512:contenthash:base64:6]'
+npm run extract -- 'src/**/*.ts*' --ignore='**/*.d.ts' --out-file lang/en.json --id-interpolation-pattern '[sha512:contenthash:base64:6]'
 ```
 
 </TabItem>
 <TabItem value="yarn">
 
 ```sh
-yarn extract 'src/**/*.ts*' --out-file lang/en.json --id-interpolation-pattern '[sha512:contenthash:base64:6]'
+yarn extract 'src/**/*.ts*' --ignore='**/*.d.ts' --out-file lang/en.json --id-interpolation-pattern '[sha512:contenthash:base64:6]'
 ```
 
 </TabItem>
 </Tabs>
 
 :::caution ID Interpolation Pattern
-Make sure this pattern matches `idInterpolationPattern` when you use `babel-plugin-formatjs` or `@formatjs/ts-transformer` in [Bundling with formatjs](https://formatjs.io/docs/guides/bundler-plugins) or you'll get a `MISSING_TRANSLATION` error.
+Make sure this pattern matches `idInterpolationPattern` when you use `babel-plugin-formatjs` or `@formatjs/ts-transformer` in [Bundling with formatjs](https://formatjs.github.io/docs/guides/bundler-plugins) or you'll get a `MISSING_TRANSLATION` error.
 :::
 
 Given a file that has the following messages:
@@ -237,7 +237,7 @@ During extraction, we'll preserve explicit declared IDs and insert a hash as an 
 
 ## Automatic ID Generation
 
-Since manual IDs are discouraged, we've provided a `babel` plugin and a `TypeScript` AST transformer that will automatically insert message IDs in your transpiled code. For more details please visit [Bundling with formatjs](https://formatjs.io/docs/guides/bundler-plugins).
+Since manual IDs are discouraged, we've provided a `babel` plugin and a `TypeScript` AST transformer that will automatically insert message IDs in your transpiled code. For more details please visit [Bundling with formatjs](https://formatjs.github.io/docs/guides/bundler-plugins).
 
 ## Translation Management System (TMS) Integration
 
@@ -296,12 +296,17 @@ exports.format = function (msgs) {
 
 We also provide several [builtin formatters](../tooling/cli.md#builtin-formatters) to integrate with 3rd party TMSes so feel free to create PRs to add more.
 
-| TMS                                                                                       | `--format`  |
-| ----------------------------------------------------------------------------------------- | ----------- |
-| [Transifex's Structured JSON](https://docs.transifex.com/formats/json/structured-json)    | `transifex` |
-| [Smartling ICU JSON](https://help.smartling.com/hc/en-us/articles/360008000733-JSON)      | `smartling` |
-| [Lingohub](https://lingohub.com/developers/resource-files/json-localization/)             | `simple`    |
-| [Phrase](https://help.phrase.com/help/simple-json)                                        | `simple`    |
-| [Crowdin Chrome JSON](https://support.crowdin.com/file-formats/chrome-json/)              | `crowdin`   |
-| [Lokalise Structured JSON](https://docs.lokalise.com/en/articles/3229161-structured-json) | `lokalise`  |
-| [SimpleLocalize JSON](https://simplelocalize.io/docs/file-formats/simplelocalize-json/)   | `simple`    |
+| TMS                                                                                                           | `--format`  |
+| ------------------------------------------------------------------------------------------------------------- | ----------- |
+| [BabelEdit](https://www.codeandweb.com/babeledit/format-js)                                                   | `simple`    |
+| [Crowdin Chrome JSON](https://support.crowdin.com/file-formats/chrome-json/)                                  | `crowdin`   |
+| [Lingohub](https://lingohub.com/developers/resource-files/json-localization/)                                 | `simple`    |
+| [Localize's Simple JSON](https://developers.localizejs.com/docs/simple-json-import-export)                    | `simple`    |
+| [Localizely](https://localizely.com/flat-json-file/?tab=react-intl)                                           | `simple`    |
+| [locize](https://docs.locize.com/integration/supported-formats#json-nested)                                   | `simple`    |
+| [Lokalise Structured JSON](https://docs.lokalise.com/en/articles/3229161-structured-json)                     | `lokalise`  |
+| [Phrase Strings](https://support.phrase.com/hc/en-us/articles/6111390065948--JSON-React-Intl-Simple-Strings-) | `simple`    |
+| [POEditor Key-Value JSON](https://poeditor.com/localization/files/key-value-json)                             | `simple`    |
+| [SimpleLocalize JSON](https://simplelocalize.io/docs/file-formats/simplelocalize-json/)                       | `simple`    |
+| [Smartling ICU JSON](https://help.smartling.com/hc/en-us/articles/360008000733-JSON)                          | `smartling` |
+| [Transifex's Structured JSON](https://docs.transifex.com/formats/json/structured-json)                        | `transifex` |

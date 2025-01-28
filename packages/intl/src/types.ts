@@ -1,27 +1,50 @@
-import {
-  IntlMessageFormat,
-  Formats,
-  PrimitiveType,
-  FormatXMLElementFn,
-  FormatError,
-  Options as IntlMessageFormatOptions,
-} from 'intl-messageformat'
-import {DateTimeFormat} from '@formatjs/ecma402-abstract'
 import {MessageFormatElement} from '@formatjs/icu-messageformat-parser'
-import IntlListFormat, {
-  IntlListFormatOptions,
-  Part,
-} from '@formatjs/intl-listformat'
-import {DisplayNames, DisplayNamesOptions} from '@formatjs/intl-displaynames'
+
+import {NumberFormatOptions} from '@formatjs/ecma402-abstract'
 import {
-  MissingTranslationError,
+  FormatError,
+  Formats,
+  FormatXMLElementFn,
+  IntlMessageFormat,
+  Options as IntlMessageFormatOptions,
+  PrimitiveType,
+} from 'intl-messageformat'
+import {
+  InvalidConfigError,
   MessageFormatError,
   MissingDataError,
-  InvalidConfigError,
+  MissingTranslationError,
   UnsupportedFormatterError,
 } from './error'
 import {DEFAULT_INTL_CONFIG} from './utils'
-import {NumberFormatOptions} from '@formatjs/ecma402-abstract'
+
+export interface Part<T = string> {
+  type: 'element' | 'literal'
+  value: T
+}
+
+// Note: FormatjsIntl is defined as a global namespace so the library user can
+// override the default types of Message.ids (e.g. as string literal unions from extracted strings)
+// or IntlConfig.locale (e.g. to a list of supported locales).
+declare global {
+  namespace FormatjsIntl {
+    interface Message {}
+    interface IntlConfig {}
+    interface Formats {}
+  }
+}
+
+type MessageIds = FormatjsIntl.Message extends {ids: infer T}
+  ? T extends string
+    ? T
+    : string
+  : string
+
+type Locale = FormatjsIntl.IntlConfig extends {locale: infer T}
+  ? T extends string
+    ? T
+    : string
+  : string
 
 export type OnErrorFn = (
   err:
@@ -33,164 +56,218 @@ export type OnErrorFn = (
     | FormatError
 ) => void
 
+export type OnWarnFn = (warning: string) => void
+
 /**
  * Config for intl object.
  * Generic type T is the type of potential rich text element. For example:
  * With React, T would be React.ReactNode
  */
 export interface ResolvedIntlConfig<T = string> {
-  locale: string
+  locale: Locale
   timeZone?: string
+  fallbackOnEmptyString?: boolean
   formats: CustomFormats
-  messages: Record<string, string> | Record<string, MessageFormatElement[]>
+  messages:
+    | Record<MessageIds, string>
+    | Record<MessageIds, MessageFormatElement[]>
   defaultLocale: string
   defaultFormats: CustomFormats
   defaultRichTextElements?: Record<string, FormatXMLElementFn<T>>
   onError: OnErrorFn
+  onWarn?: OnWarnFn
 }
 
 export interface CustomFormats extends Partial<Formats> {
   relative?: Record<string, Intl.RelativeTimeFormatOptions>
+  dateTimeRange?: Record<string, Intl.DateTimeFormatOptions>
 }
 
-export interface CustomFormatConfig {
-  format?: string
+export interface CustomFormatConfig<Source = string> {
+  format?: Source extends keyof FormatjsIntl.Formats
+    ? FormatjsIntl.Formats[Source]
+    : string
 }
 
-export type FormatDateOptions = Exclude<
+export type FormatDateTimeRangeOptions = Omit<
   Intl.DateTimeFormatOptions,
   'localeMatcher'
 > &
-  CustomFormatConfig
-export type FormatNumberOptions = Exclude<
-  NumberFormatOptions,
+  CustomFormatConfig<'dateTimeRange'>
+
+export type FormatDateOptions = Omit<
+  Intl.DateTimeFormatOptions,
   'localeMatcher'
 > &
-  CustomFormatConfig
-export type FormatRelativeTimeOptions = Exclude<
+  CustomFormatConfig<'date'>
+export type FormatNumberOptions = Omit<NumberFormatOptions, 'localeMatcher'> &
+  CustomFormatConfig<'number'>
+export type FormatRelativeTimeOptions = Omit<
   Intl.RelativeTimeFormatOptions,
   'localeMatcher'
 > &
-  CustomFormatConfig
-export type FormatPluralOptions = Exclude<
+  CustomFormatConfig<'time'>
+export type FormatPluralOptions = Omit<
   Intl.PluralRulesOptions,
   'localeMatcher'
 > &
   CustomFormatConfig
 
-export type FormatListOptions = Exclude<IntlListFormatOptions, 'localeMatcher'>
+export type FormatListOptions = Omit<Intl.ListFormatOptions, 'localeMatcher'>
 
-export type FormatDisplayNameOptions = Exclude<
-  DisplayNamesOptions,
+export type FormatDisplayNameOptions = Omit<
+  Intl.DisplayNamesOptions,
   'localeMatcher'
 >
 
-export interface IntlFormatters<T = any, R = T> {
+/**
+ * `TBase` is the type constraints of the rich text element in the formatted output.
+ * For example, with React, `TBase` should be `React.ReactNode`.
+ */
+export interface IntlFormatters<TBase = unknown> {
   formatDateTimeRange(
-    from: Parameters<DateTimeFormat['formatRange']>[0],
-    to: Parameters<DateTimeFormat['formatRange']>[1],
-    opts?: FormatDateOptions
+    this: void,
+    from: Parameters<Intl.DateTimeFormat['formatRange']>[0] | string,
+    to: Parameters<Intl.DateTimeFormat['formatRange']>[1] | string,
+    opts?: FormatDateTimeRangeOptions
   ): string
   formatDate(
+    this: void,
     value: Parameters<Intl.DateTimeFormat['format']>[0] | string,
     opts?: FormatDateOptions
   ): string
   formatTime(
+    this: void,
     value: Parameters<Intl.DateTimeFormat['format']>[0] | string,
     opts?: FormatDateOptions
   ): string
   formatDateToParts(
+    this: void,
     value: Parameters<Intl.DateTimeFormat['format']>[0] | string,
     opts?: FormatDateOptions
   ): Intl.DateTimeFormatPart[]
   formatTimeToParts(
+    this: void,
     value: Parameters<Intl.DateTimeFormat['format']>[0] | string,
     opts?: FormatDateOptions
   ): Intl.DateTimeFormatPart[]
   formatRelativeTime(
+    this: void,
     value: Parameters<Intl.RelativeTimeFormat['format']>[0],
     unit?: Parameters<Intl.RelativeTimeFormat['format']>[1],
     opts?: FormatRelativeTimeOptions
   ): string
   formatNumber(
+    this: void,
     value: Parameters<Intl.NumberFormat['format']>[0],
     opts?: FormatNumberOptions
   ): string
   formatNumberToParts(
+    this: void,
     value: Parameters<Intl.NumberFormat['format']>[0],
     opts?: FormatNumberOptions
   ): Intl.NumberFormatPart[]
   formatPlural(
+    this: void,
     value: Parameters<Intl.PluralRules['select']>[0],
     opts?: FormatPluralOptions
   ): ReturnType<Intl.PluralRules['select']>
   formatMessage(
+    this: void,
     descriptor: MessageDescriptor,
     values?: Record<string, PrimitiveType | FormatXMLElementFn<string, string>>,
     opts?: IntlMessageFormatOptions
   ): string
-  formatMessage(
+  formatMessage<T extends TBase, TValue extends T | FormatXMLElementFn<T>>(
+    this: void,
     descriptor: MessageDescriptor,
-    values?: Record<string, PrimitiveType | T | FormatXMLElementFn<T, R>>,
+    values?: Record<string, PrimitiveType | TValue>,
     opts?: IntlMessageFormatOptions
-  ): R
-  formatList(values: ReadonlyArray<string>, opts?: FormatListOptions): string
+  ): string | T | Array<string | T>
+  $t(
+    this: void,
+    descriptor: MessageDescriptor,
+    values?: Record<string, PrimitiveType | FormatXMLElementFn<string, string>>,
+    opts?: IntlMessageFormatOptions
+  ): string
+  $t<T extends TBase>(
+    this: void,
+    descriptor: MessageDescriptor,
+    values?: Record<string, PrimitiveType | T | FormatXMLElementFn<T>>,
+    opts?: IntlMessageFormatOptions
+  ): string | T | (T | string)[]
   formatList(
+    this: void,
+    values: ReadonlyArray<string>,
+    opts?: FormatListOptions
+  ): string
+  formatList<T extends TBase>(
+    this: void,
     values: ReadonlyArray<string | T>,
     opts?: FormatListOptions
-  ): T | string | Array<string | T>
-  formatListToParts(
+  ): T | string | (string | T)[]
+  formatListToParts<T extends TBase>(
+    this: void,
     values: ReadonlyArray<string | T>,
     opts?: FormatListOptions
   ): Part[]
   formatDisplayName(
-    value: Parameters<DisplayNames['of']>[0],
+    this: void,
+    value: Parameters<Intl.DisplayNames['of']>[0],
     opts: FormatDisplayNameOptions
   ): string | undefined
 }
 
 export interface Formatters {
   getDateTimeFormat(
+    this: void,
     ...args: ConstructorParameters<typeof Intl.DateTimeFormat>
-  ): DateTimeFormat
+  ): Intl.DateTimeFormat
   getNumberFormat(
-    ...args: ConstructorParameters<typeof Intl.NumberFormat>
+    this: void,
+    locales?: string | string[],
+    opts?: NumberFormatOptions
   ): Intl.NumberFormat
   getMessageFormat(
+    this: void,
     ...args: ConstructorParameters<typeof IntlMessageFormat>
   ): IntlMessageFormat
   getRelativeTimeFormat(
+    this: void,
     ...args: ConstructorParameters<typeof Intl.RelativeTimeFormat>
   ): Intl.RelativeTimeFormat
   getPluralRules(
+    this: void,
     ...args: ConstructorParameters<typeof Intl.PluralRules>
   ): Intl.PluralRules
   getListFormat(
-    ...args: ConstructorParameters<typeof IntlListFormat>
-  ): IntlListFormat
+    this: void,
+    ...args: ConstructorParameters<typeof Intl.ListFormat>
+  ): Intl.ListFormat
   getDisplayNames(
-    ...args: ConstructorParameters<typeof DisplayNames>
-  ): DisplayNames
+    this: void,
+    ...args: ConstructorParameters<typeof Intl.DisplayNames>
+  ): Intl.DisplayNames
 }
 
 export interface IntlShape<T = string>
   extends ResolvedIntlConfig<T>,
-    IntlFormatters {
+    IntlFormatters<T> {
   formatters: Formatters
 }
 
 export interface IntlCache {
-  dateTime: Record<string, DateTimeFormat>
+  dateTime: Record<string, Intl.DateTimeFormat>
   number: Record<string, Intl.NumberFormat>
   message: Record<string, IntlMessageFormat>
   relativeTime: Record<string, Intl.RelativeTimeFormat>
   pluralRules: Record<string, Intl.PluralRules>
-  list: Record<string, IntlListFormat>
-  displayNames: Record<string, DisplayNames>
+  list: Record<string, Intl.ListFormat>
+  displayNames: Record<string, Intl.DisplayNames>
 }
 
 export interface MessageDescriptor {
-  id?: string | number
+  id?: MessageIds
   description?: string | object
   defaultMessage?: string | MessageFormatElement[]
 }

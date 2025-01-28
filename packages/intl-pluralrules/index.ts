@@ -1,12 +1,13 @@
 import {
-  LDMLPluralRule,
-  PluralRulesLocaleData,
-  PluralRulesData,
-  SupportedLocales,
-  NumberFormatDigitInternalSlots,
-  ToNumber,
   CanonicalizeLocaleList,
+  LDMLPluralRule,
+  NumberFormatDigitInternalSlots,
+  PluralRulesData,
+  PluralRulesLocaleData,
+  SupportedLocales,
+  ToNumber,
 } from '@formatjs/ecma402-abstract'
+import Decimal from 'decimal.js'
 import {OperandsRecord} from './abstract/GetOperands'
 import {InitializePluralRules} from './abstract/InitializePluralRules'
 import {ResolvePlural} from './abstract/ResolvePlural'
@@ -38,7 +39,7 @@ export interface PluralRulesInternal extends NumberFormatDigitInternalSlots {
 function PluralRuleSelect(
   locale: string,
   type: 'cardinal' | 'ordinal',
-  _n: number,
+  _n: Decimal,
   {IntegerDigits, NumberOfFractionDigits, FractionDigits}: OperandsRecord
 ): LDMLPluralRule {
   return PluralRules.localeData[locale].fn(
@@ -66,7 +67,7 @@ export class PluralRules implements Intl.PluralRules {
       getInternalSlots,
     })
   }
-  public resolvedOptions() {
+  public resolvedOptions(): Intl.ResolvedPluralRulesOptions {
     validateInstance(this, 'resolvedOptions')
     const opts = Object.create(null)
     const internalSlots = getInternalSlots(this)
@@ -106,14 +107,14 @@ export class PluralRules implements Intl.PluralRules {
   public static supportedLocalesOf(
     locales?: string | string[],
     options?: Pick<Intl.PluralRulesOptions, 'localeMatcher'>
-  ) {
+  ): string[] {
     return SupportedLocales(
       PluralRules.availableLocales,
       CanonicalizeLocaleList(locales),
       options
     )
   }
-  public static __addLocaleData(...data: PluralRulesLocaleData[]) {
+  public static __addLocaleData(...data: PluralRulesLocaleData[]): void {
     for (const {data: d, locale} of data) {
       PluralRules.localeData[locale] = d
       PluralRules.availableLocales.add(locale)
@@ -123,12 +124,12 @@ export class PluralRules implements Intl.PluralRules {
     }
   }
   static localeData: Record<string, PluralRulesData> = {}
-  static availableLocales = new Set<string>()
+  static availableLocales: Set<string> = new Set<string>()
   static __defaultLocale = ''
-  static getDefaultLocale() {
+  static getDefaultLocale(): string {
     return PluralRules.__defaultLocale
   }
-  static relevantExtensionKeys = []
+  static relevantExtensionKeys: never[] = []
   public static polyfilled = true
 }
 
@@ -165,6 +166,12 @@ try {
   // https://github.com/tc39/test262/blob/master/test/intl402/RelativeTimeFormat/constructor/supportedLocalesOf/length.js
   Object.defineProperty(PluralRules.supportedLocalesOf, 'length', {
     value: 1,
+    writable: false,
+    enumerable: false,
+    configurable: true,
+  })
+  Object.defineProperty(PluralRules, 'name', {
+    value: 'PluralRules',
     writable: false,
     enumerable: false,
     configurable: true,
