@@ -28,25 +28,14 @@ Pull requests are very welcome, but should be within the scope of the project, a
 
 ## Development
 
-We currently use [`bazel`](https://bazel.build/) to develop, along with [lerna](https://lerna.js.org/) for package management.
+### Requirements
 
-Required UNIX dependencies:
+- [`bazel`](https://bazel.build/)
 
-- `zic` for `intl-datetimeformat` tz compilation
-- `zdump` for `intl-datetimeformat` tz dump
-- `realpath` for absolute path resolution
-
-To setup locally, first initialize the git submodule:
+You can build & test with `pnpm`. At the moment version >= 9 is not supported:
 
 ```sh
-> git submodule init
-> git submodule update
-```
-
-Now you can build & test with npm:
-
-```sh
-npm i && npm run build && npm t
+pnpm i && pnpm t
 ```
 
 To run examples:
@@ -58,11 +47,84 @@ npm run examples
 Releases can be done with the following steps:
 
 ```sh
-npm run release
+# Make sure you have GH_TOKEN setup as indicated by:
+# https://github.com/lerna/lerna/blob/05ad1860e2da7fc16c9c0a072c9389e94792ab64/commands/version/README.md#--create-release-type
+GH_TOKEN=xxxxxxx npm run prerelease
+bazel build :dist
+mkdir ../formatjs2
+cp -rf dist/bin/formatjs_dist/ ../formatjs2/
+# Use `--access=public` to publish new packages with `@formatjs/` scope.
+cd ../formatjs2
+npx pnpm -r publish --access=public
 ```
 
-To publish next tag
+### Updating tzdata version
+
+`tzdata` requires `Docker` to be installed. This is because tzdata compilation requires `make`.
+
+1. Change `IANA_TZ_VERSION` in [packages/intl-datetimeformat/index.bzl](https://github.com/formatjs/formatjs/blob/main/packages/intl-datetimeformat/index.bzl) to the desired version
+
+1. Update the sha256 for tzdata & tzcode targets
+
+1. Run the Docker image & update the tz_data.tar.gz
 
 ```sh
-npm run release:next
+bazel run //packages/intl-datetimeformat:update_tz_data
+```
+
+1. Test to make sure everything passes
+
+1. New TimeZones or renames of TimeZones are not updated using the Bazel script. You need to manually update `index.bzl`.
+
+### Updating test snapshots
+
+You can update the snapshot by running the test target + `_update_snapshots`, e.g
+
+```sh
+bazel run //packages/cli/integration-tests:compile_folder_integration_test_update_snapshots
+```
+
+### Generating CLDR data
+
+1. Check out `./BUILD` file for generatable data — which are identifiable via `generate_src_file()` call
+
+```starlark
+   generate_src_file(
+     name = "regex",
+     ...
+   )
+```
+
+2. Create an empty file with the given `src` attribute — path is relative to module root
+
+```sh
+   touch packages/icu-messageformat-parser/regex.generated.ts
+```
+
+3. Run update script
+
+```sh
+   bazel run //packages/icu-messageformat-parser:regex.update
+```
+
+4. Verify
+
+```sh
+   bazel run //packages/icu-messageformat-parser:regex
+```
+
+### Working on `formatjs.github.io` website
+
+We use [docusaurus](https://docusaurus.io/) for documentation. To run the website locally:
+
+```sh
+cd website
+npx docusaurus start
+```
+
+To deploy:
+
+```sh
+cd website
+GIT_PASS="<your_personal_token>" GIT_USER="your_username" DEPLOYMENT_BRANCH=main npx docusaurus deploy
 ```

@@ -4,17 +4,21 @@ Copyrights licensed under the New BSD License.
 See the accompanying LICENSE file for terms.
 */
 
-import {parse, MessageFormatElement} from '@formatjs/icu-messageformat-parser'
-import memoize, {Cache, strategies} from '@formatjs/fast-memoize'
+import {Cache, memoize, strategies} from '@formatjs/fast-memoize'
 import {
+  MessageFormatElement,
+  parse,
+  ParserOptions,
+} from '@formatjs/icu-messageformat-parser'
+import {
+  Formats,
   FormatterCache,
   Formatters,
-  Formats,
   formatToParts,
   FormatXMLElementFn,
-  PrimitiveType,
   MessageFormatPart,
   PART_TYPE,
+  PrimitiveType,
 } from './formatters'
 
 // -- MessageFormat --------------------------------------------------------
@@ -53,18 +57,13 @@ function mergeConfigs(
   )
 }
 
-export interface Options {
+export interface Options extends Omit<ParserOptions, 'locale'> {
   formatters?: Formatters
-  /**
-   * Whether to treat HTML/XML tags as string literal
-   * instead of parsing them as tag token.
-   * When this is false we only allow simple tags without
-   * any attributes
-   */
-  ignoreTag?: boolean
 }
 
-function createFastMemoizeCache<V>(store: Record<string, V>): Cache<string, V> {
+function createFastMemoizeCache<V>(
+  store: Record<string, V | undefined>
+): Cache<string, V> {
   return {
     create() {
       return {
@@ -105,6 +104,7 @@ function createDefaultFormatters(
 export class IntlMessageFormat {
   private readonly ast: MessageFormatElement[]
   private readonly locales: string | string[]
+  private readonly resolvedLocale?: Intl.Locale
   private readonly formatters: Formatters
   private readonly formats: Formats
   private readonly message: string | undefined
@@ -119,6 +119,10 @@ export class IntlMessageFormat {
     overrideFormats?: Partial<Formats>,
     opts?: Options
   ) {
+    // Defined first because it's used to build the format pattern.
+    this.locales = locales
+    this.resolvedLocale = IntlMessageFormat.resolveLocale(locales)
+
     if (typeof message === 'string') {
       this.message = message
       if (!IntlMessageFormat.__parse) {
@@ -126,9 +130,11 @@ export class IntlMessageFormat {
           'IntlMessageFormat.__parse must be set to process `message` of type `string`'
         )
       }
+      const {formatters, ...parseOpts} = opts || {}
       // Parse string messages into an AST.
       this.ast = IntlMessageFormat.__parse(message, {
-        ignoreTag: opts?.ignoreTag,
+        ...parseOpts,
+        locale: this.resolvedLocale,
       })
     } else {
       this.ast = message
@@ -142,33 +148,33 @@ export class IntlMessageFormat {
     // formats.
     this.formats = mergeConfigs(IntlMessageFormat.formats, overrideFormats)
 
-    // Defined first because it's used to build the format pattern.
-    this.locales = locales
-
     this.formatters =
       (opts && opts.formatters) || createDefaultFormatters(this.formatterCache)
   }
 
   format = <T = void>(
     values?: Record<string, PrimitiveType | T | FormatXMLElementFn<T>>
-  ) => {
+  ): string | T | (string | T)[] => {
     const parts = this.formatToParts(values)
     // Hot path for straight simple msg translations
     if (parts.length === 1) {
       return parts[0].value
     }
-    const result = parts.reduce((all, part) => {
-      if (
-        !all.length ||
-        part.type !== PART_TYPE.literal ||
-        typeof all[all.length - 1] !== 'string'
-      ) {
-        all.push(part.value)
-      } else {
-        all[all.length - 1] += part.value
-      }
-      return all
-    }, [] as Array<string | T>)
+    const result = parts.reduce(
+      (all, part) => {
+        if (
+          !all.length ||
+          part.type !== PART_TYPE.literal ||
+          typeof all[all.length - 1] !== 'string'
+        ) {
+          all.push(part.value)
+        } else {
+          all[all.length - 1] += part.value
+        }
+        return all
+      },
+      [] as Array<string | T>
+    )
 
     if (result.length <= 1) {
       return result[0] || ''
@@ -187,19 +193,36 @@ export class IntlMessageFormat {
       undefined,
       this.message
     )
-  resolvedOptions = () => ({
-    locale: Intl.NumberFormat.supportedLocalesOf(this.locales)[0],
+  resolvedOptions = (): {
+    locale: string
+  } => ({
+    locale:
+      this.resolvedLocale?.toString() ||
+      Intl.NumberFormat.supportedLocalesOf(this.locales)[0],
   })
-  getAst = () => this.ast
+  getAst = (): MessageFormatElement[] => this.ast
   private static memoizedDefaultLocale: string | null = null
 
-  static get defaultLocale() {
+  static get defaultLocale(): string {
     if (!IntlMessageFormat.memoizedDefaultLocale) {
       IntlMessageFormat.memoizedDefaultLocale =
         new Intl.NumberFormat().resolvedOptions().locale
     }
 
     return IntlMessageFormat.memoizedDefaultLocale
+  }
+  static resolveLocale = (
+    locales: string | string[]
+  ): Intl.Locale | undefined => {
+    if (typeof Intl.Locale === 'undefined') {
+      return
+    }
+    const supportedLocales = Intl.NumberFormat.supportedLocalesOf(locales)
+    if (supportedLocales.length > 0) {
+      return new Intl.Locale(supportedLocales[0])
+    }
+
+    return new Intl.Locale(typeof locales === 'string' ? locales : locales[0])
   }
   static __parse: typeof parse | undefined = parse
   // Default format options used as the prototype of the `formats` provided to the

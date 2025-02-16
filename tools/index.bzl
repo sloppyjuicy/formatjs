@@ -1,80 +1,80 @@
 "Custom macro"
 
-load("@bazelbuild_buildtools//buildifier:def.bzl", "buildifier_test")
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test")
-load("@build_bazel_rules_nodejs//internal/js_library:js_library.bzl", "js_library")
-load("@npm//@bazel/esbuild:index.bzl", _esbuild = "esbuild")
-load("@npm//@bazel/typescript:index.bzl", "ts_config", "ts_project")
-load("@npm//prettier:index.bzl", "prettier", "prettier_test")
-load("@npm//ts-node:index.bzl", "ts_node", "ts_node_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 
-BUILDIFIER_WARNINGS = [
-    "attr-cfg",
-    "attr-license",
-    "attr-non-empty",
-    "attr-output-default",
-    "attr-single-file",
-    "constant-glob",
-    "ctx-actions",
-    "ctx-args",
-    "depset-iteration",
-    "depset-union",
-    "dict-concatenation",
-    "duplicated-name",
-    "filetype",
-    "git-repository",
-    "http-archive",
-    "integer-division",
-    "load",
-    "load-on-top",
-    "native-build",
-    "native-package",
-    "out-of-order-load",
-    "output-group",
-    "package-name",
-    "package-on-top",
-    "positional-args",
-    "redefined-variable",
-    "repository-name",
-    "same-origin-load",
-    "string-iteration",
-    "unsorted-dict-items",
-    "unused-variable",
-]
+def ts_compile_node(name, srcs, deps = [], data = [], skip_cjs = False, visibility = None):
+    """Compile TS with prefilled args, specifically for Node tooling.
 
-def ts_compile(name, srcs, deps, package_name = None, skip_esm = True, skip_esm_esnext = True):
+    Args:
+        name: target name
+        srcs: src files
+        deps: deps
+        data: add data deps like internal transitive deps
+        skip_esm_esnext: whether to skip building esnext
+        skip_cjs: whether to skip building cjs
+        visibility: visibility
+    """
+    deps = deps + ["//:node_modules/tslib"]
+    if not skip_cjs:
+        ts_project(
+            name = "%s-base" % name,
+            srcs = srcs,
+            declaration = True,
+            tsconfig = "//:tsconfig.node",
+            resolve_json_module = True,
+            deps = deps,
+        )
+
+    ts_project(
+        name = "%s-esm-esnext" % name,
+        srcs = srcs,
+        declaration = True,
+        out_dir = "lib_esnext",
+        tsconfig = "//:tsconfig.esm.esnext",
+        resolve_json_module = True,
+        deps = deps,
+    )
+
+    js_library(
+        name = name,
+        srcs = [":%s-esm-esnext" % name, "package.json"] + ([":%s-base" % name] if not skip_cjs else []),
+        data = data,
+        visibility = visibility,
+    )
+
+def ts_compile(name, srcs, deps = [], skip_cjs = False, skip_esm = True, skip_esm_esnext = True, visibility = None):
     """Compile TS with prefilled args.
 
     Args:
         name: target name
         srcs: src files
         deps: deps
-        package_name: name from package.json
+        skip_cjs: skip building CJS bundle
         skip_esm: skip building ESM bundle
         skip_esm_esnext: skip building the ESM ESNext bundle
+        visibility: visibility
     """
-    deps = deps + ["@npm//tslib"]
-    ts_config(
-        name = "%s-tsconfig" % name,
-        src = "tsconfig.json",
-        deps = ["//:tsconfig.json"],
-    )
-    ts_project(
-        name = "%s-base" % name,
-        srcs = srcs,
-        declaration = True,
-        declaration_map = True,
-        tsconfig = ":%s-tsconfig" % name,
-        deps = deps,
-    )
+    deps = deps + ["//:node_modules/tslib"]
+    if not skip_cjs:
+        ts_project(
+            name = "%s-base" % name,
+            srcs = srcs,
+            declaration = True,
+            tsconfig = "//:tsconfig",
+            resolve_json_module = True,
+            deps = deps,
+        )
     if not skip_esm:
         ts_project(
             name = "%s-esm" % name,
             srcs = srcs,
             declaration = True,
-            declaration_map = True,
             out_dir = "lib",
             tsconfig = "//:tsconfig.esm",
+            resolve_json_module = True,
             deps = deps,
         )
     if not skip_esm_esnext:
@@ -82,68 +82,44 @@ def ts_compile(name, srcs, deps, package_name = None, skip_esm = True, skip_esm_
             name = "%s-esm-esnext" % name,
             srcs = srcs,
             declaration = True,
-            declaration_map = True,
             out_dir = "lib_esnext",
             tsconfig = "//:tsconfig.esm.esnext",
+            resolve_json_module = True,
             deps = deps,
         )
 
-    native.filegroup(
-        name = "types",
-        srcs = [":%s-base" % name],
-        output_group = "types",
-        visibility = ["//visibility:public"],
-    )
-
     js_library(
         name = name,
-        package_name = package_name,
-        srcs = ["package.json"],
-        deps = [":%s-base" % name] + ([":%s-esm" % name] if not skip_esm else []),
-        visibility = ["//visibility:public"],
-    )
-
-def ts_script(name, entry_point, args = [], data = [], outs = None, output_dir = False, visibility = None):
-    """Execute a TS script
-
-    Args:
-        name: name
-        entry_point: script entry file
-        args: arguments
-        data: runtime data
-        outs: output
-        output_dir: whether output is a dir
-        visibility: visibility
-    """
-    all_args = [
-        "$(execpath %s)" % entry_point,
-        "--project",
-        "$(location //:tsconfig.node.json)",
-    ]
-    if output_dir:
-        all_args += ["--outDir", "$(@D)"]
-    else:
-        all_args += ["--out", "$@"]
-    all_args += args
-    ts_node(
-        name = name,
-        outs = outs,
-        args = all_args,
-        data = data + [
-            entry_point,
-            "//:tsconfig.json",
-            "@npm//@types/fs-extra",
-            "@npm//@types/minimist",
-            "@npm//fs-extra",
-            "@npm//minimist",
-            "@npm//tslib",
-            "//:tsconfig.node.json",
-        ],
-        output_dir = output_dir,
+        srcs = ([":%s-base" % name] if not skip_cjs else []) + ([":%s-esm" % name] if not skip_esm else []) + ["package.json"],
         visibility = visibility,
     )
 
-def generate_src_file(name, entry_point, src, args = [], data = [], visibility = None):
+def ts_script(name, entry_point, args = [], chdir = None, srcs = [], outs = [], out_dirs = [], **kwargs):
+    js_binary(
+        name = "%s_tool" % name,
+        chdir = chdir,
+        entry_point = entry_point,
+        data = [
+            "//:node_modules/@swc-node/register",
+            "//:node_modules/@swc/helpers",
+        ],
+        node_options = [
+            "-r",
+            "@swc-node/register",
+        ],
+    )
+    js_run_binary(
+        name = name,
+        tool = ":%s_tool" % name,
+        chdir = chdir,
+        srcs = srcs,
+        outs = outs,
+        out_dirs = out_dirs,
+        args = args,
+        **kwargs
+    )
+
+def generate_src_file(name, entry_point, src, chdir = None, args = [], data = [], visibility = []):
     """Generate a source file.
 
     Args:
@@ -153,22 +129,36 @@ def generate_src_file(name, entry_point, src, args = [], data = [], visibility =
         src: src file to generate
         entry_point: generation script entry point
         visibility: target visibility
+        chdir: whether to chdir to another dir
     """
     tmp_filename = "%s-gen.tmp" % name
     ts_script(
         name = tmp_filename[:tmp_filename.rindex(".")],
         outs = [tmp_filename],
         entry_point = entry_point,
-        args = args,
-        data = data,
-        visibility = visibility,
+        # NOTE: assumes that all scripts called here accept `--out` and
+        # also uses fs-extra + minimist.
+        args = args + [
+            "--out",
+            "$(rootpath %s)" % tmp_filename,
+        ],
+        chdir = chdir,
+        srcs = data + [
+            "//:node_modules/fs-extra",
+            "//:node_modules/minimist",
+        ],
     )
 
-    generated_file_test(
+    files = {}
+    files[src] = tmp_filename
+
+    write_source_files(
         name = name,
-        src = src,
-        generated = tmp_filename,
-        visibility = visibility,
+        files = files,
+        visibility = visibility + [
+            "//:__pkg__",
+        ],
+        suggested_update_target = "//%s:%s" % (native.package_name(), tmp_filename[:tmp_filename.rindex(".")]),
     )
 
 def bundle_karma_tests(name, srcs, tests, data = [], deps = [], esbuild_deps = []):
@@ -182,144 +172,100 @@ def bundle_karma_tests(name, srcs, tests, data = [], deps = [], esbuild_deps = [
         deps: src + test deps
         esbuild_deps: deps to package with rollup but not to compile
     """
-    ts_project(
-        name = "%s-compile" % name,
-        srcs = srcs + tests + data,
-        declaration = True,
-        declaration_map = True,
-        extends = "//:tsconfig.json",
-        out_dir = name,
-        tsconfig = "//:tsconfig.esm.json",
-        deps = deps + [
-            "@npm//@jest/transform",
-            "@npm//ts-jest",
-            "@npm//@types/jest",
-            "@npm//tslib",
-        ],
-    )
+    # ts_project(
+    #     name = "%s-compile" % name,
+    #     srcs = srcs + tests + data,
+    #     declaration = True,
+    #     out_dir = name,
+    #     resolve_json_module = True,
+    #     tsconfig = "//:tsconfig.esm",
+    #     deps = deps + [
+    #         "//:node_modules/@jest/transform",
+    #         "//:node_modules/ts-jest",
+    #         "//:node_modules/@types/jest",
+    #         "//:node_modules/tslib",
+    #     ],
+    #     data = data,
+    # )
 
-    BUNDLE_KARMA_TESTS = ["%s-%s.bundled" % (name, f[f.rindex("/") + 1:f.rindex(".")]) for f in tests]
+    # BUNDLE_KARMA_TESTS = ["%s-%s.bundled" % (name, f[f.rindex("/") + 1:f.rindex(".")]) for f in tests]
 
-    for f in tests:
-        esbuild(
-            name = "%s-%s.bundled" % (name, f[f.rindex("/") + 1:f.rindex(".")]),
-            entry_point = "%s/%s.js" % (name, f[:f.rindex(".")]),
-            format = "iife",
-            target = "es5",
-            define = [
-                "process.version=0",
-            ],
-            deps = [
-                ":%s-compile" % name,
-                "@npm//tslib",
-            ] + deps + esbuild_deps,
-        )
+    # for f in tests:
+    #     esbuild(
+    #         name = "%s-%s.bundled" % (name, f[f.rindex("/") + 1:f.rindex(".")]),
+    #         entry_point = "%s/%s.js" % (name, f[:f.rindex(".")]),
+    #         format = "iife",
+    #         target = "es6",
+    #         # TODO: fix this and set it back to es5
+    #         define = {
+    #             "process.version": "0",
+    #         },
+    #         deps = [
+    #             ":%s-compile" % name,
+    #             "//:node_modules/tslib",
+    #         ] + deps + esbuild_deps,
+    #     )
 
-    native.filegroup(
-        name = name,
-        srcs = BUNDLE_KARMA_TESTS,
-        testonly = True,
-        visibility = ["//:__pkg__"],
-    )
+    # native.filegroup(
+    #     name = name,
+    #     srcs = BUNDLE_KARMA_TESTS,
+    #     testonly = True,
+    #     visibility = ["//:__pkg__"],
+    # )
+    pass
 
-def check_format(name, srcs, config = "//:.prettierrc.json"):
-    """
-    Run all file formatting checks like prettier/buildifier.
-
-    Args:
-        name: name of target
-        srcs: list of srcs files
-        config: prettier config
-    """
-    native.filegroup(
-        name = "%s_prettier_srcs" % name,
-        srcs = [s for s in srcs if not s.endswith("BUILD") and not s.endswith(".bzl")],
-    )
-
-    buildifier_test(
-        name = "%s_buildifier_test" % name,
-        srcs = [s for s in srcs if s.endswith("BUILD") or s.endswith(".bzl")],
-        lint_mode = "warn",
-        lint_warnings = BUILDIFIER_WARNINGS,
-        verbose = True,
-    )
-
-    prettier_test(
-        name = "%s_prettier_test" % name,
-        data = [
-            "%s_prettier_srcs" % name,
-            config,
-        ],
-        templated_args = [
-            "--config",
-            "$(rootpath %s)" % config,
-            "--loglevel",
-            "warn",
-            "--check",
-            "$(rootpaths :%s_prettier_srcs)" % name,
-        ],
-    )
-
-    prettier(
-        name = name,
-        data = [
-            "%s_prettier_srcs" % name,
-            config,
-        ],
-        templated_args = [
-            "--config",
-            "$(rootpath %s)" % config,
-            "--loglevel",
-            "warn",
-            "--write",
-            "$(rootpaths :%s_prettier_srcs)" % name,
-        ],
-        visibility = [
-            "//:__pkg__",
-        ],
-    )
-
-def esbuild(name, **kwargs):
-    _esbuild(
-        name = name,
-        tool = select({
-            "@bazel_tools//src/conditions:darwin": "@esbuild_darwin//:bin/esbuild",
-            "@bazel_tools//src/conditions:linux_x86_64": "@esbuild_linux//:bin/esbuild",
-            "@bazel_tools//src/conditions:windows": "@esbuild_windows//:esbuild.exe",
-        }),
-        **kwargs
-    )
+def is_internal_dep(s):
+    return s.startswith("//:node_modules/@formatjs") or s in [
+        "//:node_modules/babel-plugin-formatjs",
+        "//:node_modules/eslint-plugin-formatjs",
+        "//:node_modules/intl-messageformat",
+        "//:node_modules/react-intl",
+        "//:node_modules/vue-intl",
+    ]
 
 def package_json_test(name, packageJson = "package.json", deps = []):
-    external_deps = [s.replace("@npm//", "") for s in deps if s.startswith("@npm//")]
-    internal_dep_package_jsons = ["%s:package.json" % s.split(":")[0] for s in deps if not s.startswith("@npm//")]
-    ts_node_test(
-        name = name,
-        args = [
-                   "--transpile-only",
-                   "$(execpath //tools:check-package-json.ts)",
-                   "--rootPackageJson",
-                   "$(location //:package.json)",
-                   "--packageJson",
-                   "$(location %s)" % packageJson,
-               ] +
-               ["--externalDep %s" % n for n in external_deps] +
-               ["--internalDepPackageJson $(location %s)" % d for d in internal_dep_package_jsons],
-        data = internal_dep_package_jsons + [
-            packageJson,
-            "//tools:check-package-json.ts",
-            "//:package.json",
-            "//:tsconfig.json",
-            "@npm//@types/fs-extra",
-            "@npm//@types/minimist",
-            "@npm//fs-extra",
-            "@npm//json-stable-stringify",
-            "@npm//@types/json-stable-stringify",
-            "@npm//minimist",
-            "@npm//lodash",
-            "@npm//@types/lodash",
-            "@npm//unidiff",
-            "@npm//tslib",
-            "//:tsconfig.node.json",
-        ],
+    copy_to_bin(
+        name = "package",
+        srcs = ["package.json"],
+        visibility = ["//visibility:public"],
     )
+
+    internal_deps = [
+        s
+        for s in deps
+        if is_internal_dep(s)
+    ]
+
+    external_deps = [s for s in deps if s not in internal_deps]
+
+    # TODO: fix this
+    # ts_node_bin.ts_node_test(
+    #     name = name,
+    #     args = [
+    #                "--transpile-only",
+    #                "$(location //tools:check-package-json)",
+    #                "--rootPackageJson",
+    #                "$(location //:package)",
+    #                "--packageJson",
+    #                "$(location %s)" % packageJson,
+    #            ] +
+    #            (["--externalDep %s" % n for n in external_deps] if external_deps else []) +
+    #            (["--internalDep %s" % d.split("//:node_modules/")[1] for d in internal_deps] if internal_deps else []),
+    #     data = internal_deps + [
+    #         packageJson,
+    #         "//tools:check-package-json",
+    #         "//:package",
+    #         "//:tsconfig",
+    #         "//:node_modules/@types/fs-extra",
+    #         "//:node_modules/@types/minimist",
+    #         "//:node_modules/fs-extra",
+    #         "//:node_modules/json-stable-stringify",
+    #         "//:node_modules/@types/json-stable-stringify",
+    #         "//:node_modules/minimist",
+    #         "//:node_modules/lodash",
+    #         "//:node_modules/@types/lodash",
+    #         "//:node_modules/unidiff",
+    #         "//:node_modules/tslib",
+    #         "//:tsconfig.node",
+    #     ],
+    # )

@@ -1,32 +1,38 @@
-import {Rule} from 'eslint'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
-import {extractMessages} from '../util'
 import {
-  parse,
-  isPluralElement,
   MessageFormatElement,
+  isPluralElement,
+  parse,
 } from '@formatjs/icu-messageformat-parser'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
-class NoOffsetError extends Error {
-  public message = 'offset are not allowed in plural rules'
-}
+type MessageIds = 'noOffset'
 
 function verifyAst(ast: MessageFormatElement[]) {
+  const errors: {messageId: MessageIds; data: Record<string, unknown>}[] = []
   for (const el of ast) {
     if (isPluralElement(el)) {
       if (el.offset) {
-        throw new NoOffsetError()
+        errors.push({messageId: 'noOffset', data: {}})
       }
       const {options} = el
       for (const selector of Object.keys(options)) {
-        verifyAst(options[selector].value)
+        errors.push(...verifyAst(options[selector].value))
       }
     }
   }
+
+  return errors
 }
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+function checkNode(
+  context: RuleContext<MessageIds, unknown[]>,
+  node: TSESTree.Node
+) {
+  const settings = getSettings(context)
+  const msgs = extractMessages(node, settings)
 
   for (const [
     {
@@ -37,38 +43,45 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!defaultMessage || !messageNode) {
       continue
     }
-    try {
-      verifyAst(
-        parse(defaultMessage, {
-          ignoreTag: context.settings.ignoreTag,
-        })
-      )
-    } catch (e) {
+    const errors = verifyAst(
+      parse(defaultMessage, {
+        ignoreTag: settings.ignoreTag,
+      })
+    )
+    for (const error of errors) {
       context.report({
-        node: messageNode as any,
-        message: e.message,
+        node: messageNode,
+        ...error,
       })
     }
   }
 }
 
-const rule: Rule.RuleModule = {
+export const name = 'no-offset'
+
+export const rule: RuleModule<MessageIds> = {
   meta: {
     type: 'problem',
     docs: {
       description: 'Disallow offset in plural rules',
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#no-offset',
+      url: 'https://formatjs.github.io/docs/tooling/linter#no-offset',
     },
     fixable: 'code',
+    messages: {
+      noOffset: 'offset is not allowed',
+    },
+    schema: [],
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -83,5 +96,3 @@ const rule: Rule.RuleModule = {
     }
   },
 }
-
-export default rule

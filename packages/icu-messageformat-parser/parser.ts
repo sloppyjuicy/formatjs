@@ -17,6 +17,7 @@ import {
   parseNumberSkeletonFromString,
   parseDateTimeSkeleton,
 } from '@formatjs/icu-skeleton-parser'
+import {getBestPattern} from './date-time-pattern-generator'
 
 const SPACE_SEPARATOR_START_REGEX = new RegExp(
   `^${SPACE_SEPARATOR_REGEX.source}*`
@@ -56,6 +57,10 @@ export interface ParserOptions {
    * Default is false
    */
   captureLocation?: boolean
+  /**
+   * Instance of Intl.Locale to resolve locale-dependent skeleton
+   */
+  locale?: Intl.Locale
 }
 
 export type Result<T, E> = {val: T; err: null} | {val: null; err: E}
@@ -74,7 +79,8 @@ function createLocation(start: Position, end: Position): Location {
 
 // #region Ponyfills
 // Consolidate these variables up top for easier toggling during debugging
-const hasNativeStartsWith = !!String.prototype.startsWith
+const hasNativeStartsWith =
+  !!String.prototype.startsWith && '_a'.startsWith('a', 1)
 const hasNativeFromCodePoint = !!String.fromCodePoint
 const hasNativeFromEntries = !!(Object as any).fromEntries
 const hasNativeCodePointAt = !!String.prototype.codePointAt
@@ -236,6 +242,7 @@ if (REGEX_SUPPORTS_U_AND_Y) {
 export class Parser {
   private message: string
   private position: Position
+  private locale?: Intl.Locale
 
   private ignoreTag: boolean
   private requiresOtherClause: boolean
@@ -245,6 +252,7 @@ export class Parser {
     this.message = message
     this.position = {offset: 0, line: 1, column: 1}
     this.ignoreTag = !!options.ignoreTag
+    this.locale = options.locale
     this.requiresOtherClause = !!options.requiresOtherClause
     this.shouldParseSkeletons = !!options.shouldParseSkeletons
   }
@@ -739,7 +747,7 @@ export class Parser {
         // Extract style or skeleton
         if (styleAndLocation && startsWith(styleAndLocation?.style, '::', 0)) {
           // Skeleton starts with `::`.
-          const skeleton = trimStart(styleAndLocation.style.slice(2))
+          let skeleton = trimStart(styleAndLocation.style.slice(2))
 
           if (argType === 'number') {
             const result = this.parseNumberSkeletonFromString(
@@ -757,12 +765,22 @@ export class Parser {
             if (skeleton.length === 0) {
               return this.error(ErrorKind.EXPECT_DATE_TIME_SKELETON, location)
             }
+
+            let dateTimePattern = skeleton
+
+            // Get "best match" pattern only if locale is passed, if not, let it
+            // pass as-is where `parseDateTimeSkeleton()` will throw an error
+            // for unsupported patterns.
+            if (this.locale) {
+              dateTimePattern = getBestPattern(skeleton, this.locale)
+            }
+
             const style: DateTimeSkeleton = {
               type: SKELETON_TYPE.dateTime,
-              pattern: skeleton,
+              pattern: dateTimePattern,
               location: styleAndLocation.styleLocation,
               parsedOptions: this.shouldParseSkeletons
-                ? parseDateTimeSkeleton(skeleton)
+                ? parseDateTimeSkeleton(dateTimePattern)
                 : {},
             }
 
@@ -781,8 +799,8 @@ export class Parser {
               argType === 'number'
                 ? TYPE.number
                 : argType === 'date'
-                ? TYPE.date
-                : TYPE.time,
+                  ? TYPE.date
+                  : TYPE.time,
             value,
             location,
             style: styleAndLocation?.style ?? null,

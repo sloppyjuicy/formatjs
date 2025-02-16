@@ -13,11 +13,15 @@ Our current list of polyfills includes:
 - [Intl.DisplayNames](polyfills/intl-displaynames.md)
 - [Intl.NumberFormat](polyfills/intl-numberformat.md) (ES2020)
 - [Intl.Locale](polyfills/intl-locale.md)
+- [Intl.LocaleMatcher](polyfills/intl-localematcher.md)
 - [Intl.getCanonicalLocales](polyfills/intl-getcanonicallocales.md)
 - [Intl.DateTimeFormat](polyfills/intl-datetimeformat.md) (ES2020)
+- [Intl.Segmenter](polyfills/intl-segmenter.md)
+- [Intl.DurationFormat](polyfills/intl-durationformat.md)
+- [Intl.supportedValuesOf](polyfills/intl-supportedvaluesof.md)
 
 ![Polyfill Hierarchy](/img/polyfills.svg)
 
-# polyfill.io Integration
+# polyfill-fastly.io Integration
 
-For basic use cases, we recommend using [polyfill.io](https://polyfill.io/) or [polyfill-library](https://github.com/Financial-Times/polyfill-library) to generate polyfill bundle since it automatically resolves the dependencies above for you.
+For basic use cases, we recommend using [polyfill-fastly.io](https://polyfill-fastly.io/) or [polyfill-library](https://github.com/Financial-Times/polyfill-library) to generate polyfill bundle since it automatically resolves the dependencies above for you.

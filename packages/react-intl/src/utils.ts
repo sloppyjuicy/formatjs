@@ -1,9 +1,18 @@
-import {ResolvedIntlConfig} from './types'
-import * as React from 'react'
 import {FormatXMLElementFn} from 'intl-messageformat'
-import {invariant} from '@formatjs/ecma402-abstract'
+import * as React from 'react'
+import {ResolvedIntlConfig} from './types'
 
 import {DEFAULT_INTL_CONFIG as CORE_DEFAULT_INTL_CONFIG} from '@formatjs/intl'
+
+export function invariant(
+  condition: boolean,
+  message: string,
+  Err: any = Error
+): asserts condition {
+  if (!condition) {
+    throw new Err(message)
+  }
+}
 
 export function invariantIntlContext(intl?: any): asserts intl {
   invariant(
@@ -13,8 +22,9 @@ export function invariantIntlContext(intl?: any): asserts intl {
   )
 }
 
-export const DEFAULT_INTL_CONFIG: Pick<
+export type DefaultIntlConfig = Pick<
   ResolvedIntlConfig,
+  | 'fallbackOnEmptyString'
   | 'formats'
   | 'messages'
   | 'timeZone'
@@ -22,7 +32,9 @@ export const DEFAULT_INTL_CONFIG: Pick<
   | 'defaultLocale'
   | 'defaultFormats'
   | 'onError'
-> = {
+>
+
+export const DEFAULT_INTL_CONFIG: DefaultIntlConfig = {
   ...CORE_DEFAULT_INTL_CONFIG,
   textComponent: React.Fragment,
 }
@@ -43,8 +55,8 @@ export function assignUniqueKeysToParts(
 }
 
 export function shallowEqual<
-  T extends Record<string, unknown> = Record<string, unknown>
->(objA?: T, objB?: T) {
+  T extends Record<string, unknown> = Record<string, unknown>,
+>(objA?: T, objB?: T): boolean {
   if (objA === objB) {
     return true
   }

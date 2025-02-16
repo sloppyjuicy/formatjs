@@ -1,27 +1,27 @@
 import {NumberSkeletonToken} from '@formatjs/icu-skeleton-parser'
 import {
-  MessageFormatElement,
-  isLiteralElement,
-  LiteralElement,
   ArgumentElement,
   DateElement,
-  TimeElement,
-  NumberElement,
-  SelectElement,
-  PluralElement,
-  TagElement,
-  isTagElement,
-  isSelectElement,
+  DateTimeSkeleton,
   isArgumentElement,
   isDateElement,
-  isTimeElement,
+  isLiteralElement,
   isNumberElement,
   isPluralElement,
-  TYPE,
+  isPoundElement,
+  isSelectElement,
+  isTagElement,
+  isTimeElement,
+  LiteralElement,
+  MessageFormatElement,
+  NumberElement,
+  PluralElement,
+  SelectElement,
   Skeleton,
   SKELETON_TYPE,
-  DateTimeSkeleton,
-  isPoundElement,
+  TagElement,
+  TimeElement,
+  TYPE,
 } from './types'
 
 export function printAST(ast: MessageFormatElement[]): string {
@@ -32,9 +32,9 @@ export function doPrintAST(
   ast: MessageFormatElement[],
   isInPlural: boolean
 ): string {
-  const printedNodes = ast.map(el => {
+  const printedNodes = ast.map((el, i) => {
     if (isLiteralElement(el)) {
-      return printLiteralElement(el, isInPlural)
+      return printLiteralElement(el, isInPlural, i === 0, i === ast.length - 1)
     }
 
     if (isArgumentElement(el)) {
@@ -68,11 +68,26 @@ function printTagElement(el: TagElement): string {
 }
 
 function printEscapedMessage(message: string): string {
-  return message.replace(/([{}](?:.*[{}])?)/su, `'$1'`)
+  return message.replace(/([{}](?:[\s\S]*[{}])?)/, `'$1'`)
 }
 
-function printLiteralElement({value}: LiteralElement, isInPlural: boolean) {
-  const escaped = printEscapedMessage(value)
+function printLiteralElement(
+  {value}: LiteralElement,
+  isInPlural: boolean,
+  isFirstEl: boolean,
+  isLastEl: boolean
+) {
+  let escaped = value
+  // If this literal starts with a ' and its not the 1st node, this means the node before it is non-literal
+  // and the `'` needs to be unescaped
+  if (!isFirstEl && escaped[0] === `'`) {
+    escaped = `''${escaped.slice(1)}`
+  }
+  // Same logic but for last el
+  if (!isLastEl && escaped[escaped.length - 1] === `'`) {
+    escaped = `${escaped.slice(0, escaped.length - 1)}''`
+  }
+  escaped = printEscapedMessage(escaped)
   return isInPlural ? escaped.replace('#', "'#'") : escaped
 }
 

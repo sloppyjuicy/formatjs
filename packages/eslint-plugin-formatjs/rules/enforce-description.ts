@@ -1,9 +1,21 @@
-import {Rule} from 'eslint'
-import {extractMessages} from '../util'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+export enum Option {
+  literal = 'literal',
+  anything = 'anything',
+}
+
+type MessageIds = 'enforceDescription' | 'enforceDescriptionLiteral'
+type Options = [`${Option}`?]
+
+function checkNode(
+  context: RuleContext<MessageIds, Options>,
+  node: TSESTree.Node
+) {
+  const msgs = extractMessages(node, getSettings(context))
   const {
     options: [type],
   } = context
@@ -16,42 +28,52 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!description) {
       if (type === 'literal' && descriptionNode) {
         context.report({
-          node: descriptionNode as any,
-          message:
-            '`description` has to be a string literal (not function call or variable)',
+          node: descriptionNode,
+          messageId: 'enforceDescriptionLiteral',
         })
       } else if (!descriptionNode) {
         context.report({
-          node: node as any,
-          message: '`description` has to be specified in message descriptor',
+          node: node,
+          messageId: 'enforceDescription',
         })
       }
     }
   }
 }
 
-export default {
+export const name = 'enforce-description'
+
+export const rule: RuleModule<MessageIds, Options> = {
   meta: {
     type: 'problem',
     docs: {
       description: 'Enforce description in message descriptor',
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#enforce-description',
+      url: 'https://formatjs.github.io/docs/tooling/linter#enforce-description',
     },
     fixable: 'code',
     schema: [
       {
-        enum: ['literal', 'anything'],
+        type: 'string',
+        enum: Object.keys(Option),
       },
     ],
+    messages: {
+      enforceDescription:
+        '`description` has to be specified in message descriptor',
+      enforceDescriptionLiteral:
+        '`description` has to be a string literal (not function call or variable)',
+    },
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -65,4 +87,4 @@ export default {
       CallExpression: callExpressionVisitor,
     }
   },
-} as Rule.RuleModule
+}

@@ -1,11 +1,10 @@
+import {FormatDateTimeRangeOptions} from '@formatjs/intl'
 import * as React from 'react'
-import {FormatDateOptions} from '@formatjs/intl'
-import {DateTimeFormat} from '@formatjs/ecma402-abstract'
 import useIntl from './useIntl'
 
-interface Props extends FormatDateOptions {
-  from: Parameters<DateTimeFormat['formatRange']>[0]
-  to: Parameters<DateTimeFormat['formatRange']>[1]
+interface Props extends FormatDateTimeRangeOptions {
+  from: Parameters<Intl.DateTimeFormat['formatRange']>[0]
+  to: Parameters<Intl.DateTimeFormat['formatRange']>[1]
   children?(value: React.ReactNode): React.ReactElement | null
 }
 

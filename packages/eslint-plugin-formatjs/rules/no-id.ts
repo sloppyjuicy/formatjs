@@ -1,25 +1,36 @@
-import {Rule, SourceCode} from 'eslint'
-import {extractMessages} from '../util'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
-import * as ESTree from 'estree'
+import {TSESTree} from '@typescript-eslint/utils'
+import {
+  RuleContext,
+  RuleModule,
+  SourceCode,
+} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
 function isComment(
   token: ReturnType<SourceCode['getTokenAfter']>
-): token is ESTree.Comment {
+): token is TSESTree.Comment {
   return !!token && (token.type === 'Block' || token.type === 'Line')
 }
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+type MessageIds = 'noId'
+
+export const name = 'no-id'
+
+function checkNode(
+  context: RuleContext<MessageIds, unknown[]>,
+  node: TSESTree.Node
+) {
+  const msgs = extractMessages(node, getSettings(context))
   for (const [{idPropNode}] of msgs) {
     if (idPropNode) {
       context.report({
-        node: idPropNode as any,
-        message: 'Manual `id` are not allowed in message descriptor',
+        node: idPropNode,
+        messageId: 'noId',
         fix(fixer) {
           const src = context.getSourceCode()
-          const token = src.getTokenAfter(idPropNode as any)
-          const fixes = [fixer.remove(idPropNode as any)]
+          const token = src.getTokenAfter(idPropNode)
+          const fixes = [fixer.remove(idPropNode)]
           if (token && !isComment(token) && token?.value === ',') {
             fixes.push(fixer.remove(token))
           }
@@ -30,23 +41,29 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
   }
 }
 
-export default {
+export const rule: RuleModule<MessageIds> = {
   meta: {
     type: 'problem',
     docs: {
       description: 'Ban explicit ID from MessageDescriptor',
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#no-id',
+      url: 'https://formatjs.github.io/docs/tooling/linter#no-id',
     },
     fixable: 'code',
+    schema: [],
+    messages: {
+      noId: 'Manual `id` are not allowed in message descriptor',
+    },
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -60,4 +77,4 @@ export default {
       CallExpression: callExpressionVisitor,
     }
   },
-} as Rule.RuleModule
+}

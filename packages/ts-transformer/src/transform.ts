@@ -1,8 +1,9 @@
+import {MessageFormatElement, parse} from '@formatjs/icu-messageformat-parser'
+import stringify from 'json-stable-stringify'
 import * as typescript from 'typescript'
-import {MessageDescriptor} from './types'
-import {interpolateName} from './interpolate-name'
-import {parse, MessageFormatElement} from '@formatjs/icu-messageformat-parser'
 import {debug} from './console_utils'
+import {interpolateName} from './interpolate-name'
+import {MessageDescriptor} from './types'
 export type Extractor = (filePath: string, msgs: MessageDescriptor[]) => void
 export type MetaExtractor = (
   filePath: string,
@@ -10,9 +11,9 @@ export type MetaExtractor = (
 ) => void
 
 export type InterpolateNameFn = (
-  id?: string,
-  defaultMessage?: string,
-  description?: string,
+  id?: MessageDescriptor['id'],
+  defaultMessage?: MessageDescriptor['defaultMessage'],
+  description?: MessageDescriptor['description'],
   filePath?: string
 ) => string
 
@@ -31,12 +32,12 @@ function primitiveToTSNode(
   return typeof v === 'string'
     ? factory.createStringLiteral(v)
     : typeof v === 'number'
-    ? factory.createNumericLiteral(v + '')
-    : typeof v === 'boolean'
-    ? v
-      ? factory.createTrue()
-      : factory.createFalse()
-    : undefined
+      ? factory.createNumericLiteral(v + '')
+      : typeof v === 'boolean'
+        ? v
+          ? factory.createTrue()
+          : factory.createFalse()
+        : undefined
 }
 
 function isValidIdentifier(k: string): boolean {
@@ -77,6 +78,40 @@ function messageASTToTSNode(
   return factory.createArrayLiteralExpression(
     ast.map(el => objToTSNode(factory, el))
   )
+}
+
+function literalToObj(ts: TypeScript, n: typescript.Node) {
+  if (ts.isNumericLiteral(n)) {
+    return +n.text
+  }
+  if (ts.isStringLiteral(n)) {
+    return n.text
+  }
+  if (n.kind === ts.SyntaxKind.TrueKeyword) {
+    return true
+  }
+  if (n.kind === ts.SyntaxKind.FalseKeyword) {
+    return false
+  }
+}
+
+function objectLiteralExpressionToObj(
+  ts: TypeScript,
+  obj: typescript.ObjectLiteralExpression
+): object {
+  return obj.properties.reduce((all: Record<string, any>, prop) => {
+    if (ts.isPropertyAssignment(prop) && prop.name) {
+      if (ts.isIdentifier(prop.name)) {
+        all[prop.name.escapedText.toString()] = literalToObj(
+          ts,
+          prop.initializer
+        )
+      } else if (ts.isStringLiteral(prop.name)) {
+        all[prop.name.text] = literalToObj(ts, prop.initializer)
+      }
+    }
+    return all
+  }, {})
 }
 
 export interface Opts {
@@ -176,6 +211,7 @@ function isSingularMessageDecl(
     'defineMessage',
     'formatMessage',
     '$formatMessage',
+    '$t',
     ...additionalComponentNames,
   ])
   let fnName = ''
@@ -221,6 +257,7 @@ function extractMessageDescriptor(
 ): MessageDescriptor | undefined {
   let properties:
     | typescript.NodeArray<typescript.ObjectLiteralElement>
+    | typescript.NodeArray<typescript.JsxAttributeLike>
     | undefined = undefined
   if (ts.isObjectLiteralExpression(node)) {
     properties = node.properties
@@ -243,26 +280,8 @@ function extractMessageDescriptor(
         : undefined
 
     if (name && ts.isIdentifier(name) && initializer) {
-      // <FormattedMessage foo={'barbaz'} />
-      if (
-        ts.isJsxExpression(initializer) &&
-        initializer.expression &&
-        ts.isStringLiteral(initializer.expression)
-      ) {
-        switch (name.text) {
-          case 'id':
-            msg.id = initializer.expression.text
-            break
-          case 'defaultMessage':
-            msg.defaultMessage = initializer.expression.text
-            break
-          case 'description':
-            msg.description = initializer.expression.text
-            break
-        }
-      }
       // {id: 'id'}
-      else if (ts.isStringLiteral(initializer)) {
+      if (ts.isStringLiteral(initializer)) {
         switch (name.text) {
           case 'id':
             msg.id = initializer.text
@@ -289,8 +308,32 @@ function extractMessageDescriptor(
             break
         }
       } else if (ts.isJsxExpression(initializer) && initializer.expression) {
+        // <FormattedMessage foo={'barbaz'} />
+        if (ts.isStringLiteral(initializer.expression)) {
+          switch (name.text) {
+            case 'id':
+              msg.id = initializer.expression.text
+              break
+            case 'defaultMessage':
+              msg.defaultMessage = initializer.expression.text
+              break
+            case 'description':
+              msg.description = initializer.expression.text
+              break
+          }
+        }
+        // description={{custom: 1}}
+        else if (
+          ts.isObjectLiteralExpression(initializer.expression) &&
+          name.text === 'description'
+        ) {
+          msg.description = objectLiteralExpressionToObj(
+            ts,
+            initializer.expression
+          )
+        }
         // <FormattedMessage foo={`bar`} />
-        if (ts.isNoSubstitutionTemplateLiteral(initializer.expression)) {
+        else if (ts.isNoSubstitutionTemplateLiteral(initializer.expression)) {
           const {expression} = initializer
           switch (name.text) {
             case 'id':
@@ -340,6 +383,13 @@ function extractMessageDescriptor(
           }
         }
       }
+      // description: {custom: 1}
+      else if (
+        ts.isObjectLiteralExpression(initializer) &&
+        name.text === 'description'
+      ) {
+        msg.description = objectLiteralExpressionToObj(ts, initializer)
+      }
     }
   })
   // We extracted nothing
@@ -359,7 +409,11 @@ function extractMessageDescriptor(
             overrideIdFn,
             {
               content: msg.description
-                ? `${msg.defaultMessage}#${msg.description}`
+                ? `${msg.defaultMessage}#${
+                    typeof msg.description === 'string'
+                      ? msg.description
+                      : stringify(msg.description)
+                  }`
                 : msg.defaultMessage,
             }
           )
@@ -415,10 +469,24 @@ function isMemberMethodFormatMessageCall(
 function extractMessageFromJsxComponent(
   ts: TypeScript,
   factory: typescript.NodeFactory,
+  node: typescript.JsxSelfClosingElement,
+  opts: Opts,
+  sf: typescript.SourceFile
+): typescript.VisitResult<typescript.JsxSelfClosingElement>
+function extractMessageFromJsxComponent(
+  ts: TypeScript,
+  factory: typescript.NodeFactory,
+  node: typescript.JsxOpeningElement,
+  opts: Opts,
+  sf: typescript.SourceFile
+): typescript.VisitResult<typescript.JsxOpeningElement>
+function extractMessageFromJsxComponent(
+  ts: TypeScript,
+  factory: typescript.NodeFactory,
   node: typescript.JsxOpeningElement | typescript.JsxSelfClosingElement,
   opts: Opts,
   sf: typescript.SourceFile
-): typeof node {
+): typescript.VisitResult<typeof node> {
   const {onMsgExtracted} = opts
   if (!isSingularMessageDecl(ts, node, opts.additionalComponentNames || [])) {
     return node
@@ -546,7 +614,7 @@ function extractMessagesFromCallExpression(
   node: typescript.CallExpression,
   opts: Opts,
   sf: typescript.SourceFile
-): typeof node {
+): typescript.VisitResult<typescript.CallExpression> {
   const {onMsgExtracted, additionalFunctionNames} = opts
   if (isMultipleMessageDecl(ts, node)) {
     const [arg, ...restArgs] = node.arguments
@@ -669,43 +737,55 @@ function getVisitor(
     const newNode = ts.isCallExpression(node)
       ? extractMessagesFromCallExpression(ts, ctx.factory, node, opts, sf)
       : ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)
-      ? extractMessageFromJsxComponent(ts, ctx.factory, node, opts, sf)
-      : node
-    return ts.visitEachChild(newNode, visitor, ctx)
+        ? extractMessageFromJsxComponent(
+            ts,
+            ctx.factory,
+            node as typescript.JsxOpeningElement,
+            opts,
+            sf
+          )
+        : node
+    return ts.visitEachChild(newNode as typescript.Node, visitor, ctx)
   }
   return visitor
 }
 
-export function transformWithTs(ts: TypeScript, opts: Opts) {
+export function transformWithTs(
+  ts: TypeScript,
+  opts: Opts
+): typescript.TransformerFactory<typescript.SourceFile> {
   opts = {...DEFAULT_OPTS, ...opts}
   debug('Transforming options', opts)
-  const transformFn: typescript.TransformerFactory<typescript.SourceFile> =
-    ctx => {
-      return (sf: typescript.SourceFile) => {
-        const pragmaResult = PRAGMA_REGEX.exec(sf.text)
-        if (pragmaResult) {
-          debug('Pragma found', pragmaResult)
-          const [, pragma, kvString] = pragmaResult
-          if (pragma === opts.pragma) {
-            const kvs = kvString.split(' ')
-            const result: Record<string, string> = {}
-            for (const kv of kvs) {
-              const [k, v] = kv.split(':')
-              result[k] = v
-            }
-            debug('Pragma extracted', result)
-            if (typeof opts.onMetaExtracted === 'function') {
-              opts.onMetaExtracted(sf.fileName, result)
-            }
+  const transformFn: typescript.TransformerFactory<
+    typescript.SourceFile
+  > = ctx => {
+    return sf => {
+      const pragmaResult = PRAGMA_REGEX.exec(sf.text)
+      if (pragmaResult) {
+        debug('Pragma found', pragmaResult)
+        const [, pragma, kvString] = pragmaResult
+        if (pragma === opts.pragma) {
+          const kvs = kvString.split(' ')
+          const result: Record<string, string> = {}
+          for (const kv of kvs) {
+            const [k, v] = kv.split(':')
+            result[k] = v
+          }
+          debug('Pragma extracted', result)
+          if (typeof opts.onMetaExtracted === 'function') {
+            opts.onMetaExtracted(sf.fileName, result)
           }
         }
-        return ts.visitNode(sf, getVisitor(ts, ctx, sf, opts))
       }
+      return ts.visitEachChild(sf, getVisitor(ts, ctx, sf, opts), ctx)
     }
+  }
 
   return transformFn
 }
 
-export function transform(opts: Opts) {
+export function transform(
+  opts: Opts
+): typescript.TransformerFactory<typescript.SourceFile> {
   return transformWithTs(typescript, opts)
 }

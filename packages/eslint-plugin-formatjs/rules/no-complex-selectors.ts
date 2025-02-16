@@ -1,32 +1,72 @@
-import {Rule} from 'eslint'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
-import {extractMessages} from '../util'
 import {
-  parse,
-  isPluralElement,
   MessageFormatElement,
-  isSelectElement,
+  TYPE,
+  parse,
 } from '@formatjs/icu-messageformat-parser'
-import {hoistSelectors} from '@formatjs/icu-messageformat-parser/manipulator'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
 interface Config {
   limit: number
 }
 
+type MessageIds = 'tooComplex' | 'parserError'
+type Options = [Config?]
+
 function calculateComplexity(ast: MessageFormatElement[]): number {
-  if (ast.length === 1) {
-    const el = ast[0]
-    if (isPluralElement(el) || isSelectElement(el)) {
-      return Object.keys(el.options).reduce((complexity, k) => {
-        return complexity + calculateComplexity(el.options[k].value)
-      }, 0)
+  // Dynamic programming: define a complexity function f, where:
+  //   f(plural | select) = sum(f(option) for each option) * f(next element),
+  //   f(tag) = f(first element of children) * f(next element),
+  //   f(other) = f(next element),
+  //   f(out of bound) = 1.
+  const complexityByNode = new Map<MessageFormatElement, number>()
+  return _calculate(ast, 0)
+
+  function _calculate(ast: MessageFormatElement[], index: number): number {
+    const element: MessageFormatElement | undefined = ast[index]
+    if (!element) {
+      return 1
     }
+
+    const cachedComplexity = complexityByNode.get(element)
+    if (cachedComplexity !== undefined) {
+      return cachedComplexity
+    }
+
+    let complexity: number
+
+    switch (element.type) {
+      case TYPE.plural:
+      case TYPE.select: {
+        let sumOfOptions = 0
+        for (const {value} of Object.values(element.options)) {
+          sumOfOptions += _calculate(value, 0)
+        }
+        complexity = sumOfOptions * _calculate(ast, index + 1)
+        break
+      }
+      case TYPE.tag:
+        complexity =
+          _calculate(element.children, 0) * _calculate(ast, index + 1)
+        break
+      default:
+        complexity = _calculate(ast, index + 1)
+        break
+    }
+
+    complexityByNode.set(element, complexity)
+    return complexity
   }
-  return 1
 }
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+function checkNode(
+  context: RuleContext<MessageIds, Options>,
+  node: TSESTree.Node
+) {
+  const settings = getSettings(context)
+  const msgs = extractMessages(node, settings)
   if (!msgs.length) {
     return
   }
@@ -45,37 +85,52 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!defaultMessage || !messageNode) {
       continue
     }
-    const hoistedAst = hoistSelectors(
-      parse(defaultMessage, {
-        ignoreTag: context.settings.ignoreTag,
+
+    let ast: MessageFormatElement[]
+    try {
+      ast = parse(defaultMessage, {
+        ignoreTag: settings.ignoreTag,
       })
-    )
-    const complexity = calculateComplexity(hoistedAst)
+    } catch (e) {
+      context.report({
+        node: messageNode,
+        messageId: 'parserError',
+        data: {message: e instanceof Error ? e.message : String(e)},
+      })
+      return
+    }
+
+    const complexity = calculateComplexity(ast)
+
     if (complexity > config.limit) {
       context.report({
-        node: messageNode as any,
-        message: `Message complexity is too high (${complexity} vs limit at ${config.limit})`,
+        node: messageNode,
+        messageId: 'tooComplex',
+        data: {
+          complexity,
+          limit: config.limit,
+        },
       })
     }
   }
 }
 
-const rule: Rule.RuleModule = {
+export const name = 'no-complex-selectors'
+
+export const rule: RuleModule<MessageIds, Options> = {
   meta: {
     type: 'problem',
     docs: {
-      description: `Make sure a sentence is not too complex. 
+      description: `Make sure a sentence is not too complex.
 Complexity is determined by how many strings are produced when we try to
 flatten the sentence given its selectors. For example:
 "I have {count, plural, one{a dog} other{many dogs}}"
 has the complexity of 2 because flattening the plural selector
 results in 2 sentences: "I have a dog" & "I have many dogs".
-Default complexity limit is 20 
+Default complexity limit is 20
 (using Smartling as a reference: https://help.smartling.com/hc/en-us/articles/360008030994-ICU-MessageFormat)
 `,
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#no-complex-selectors',
+      url: 'https://formatjs.github.io/docs/tooling/linter#no-complex-selectors',
     },
     schema: [
       {
@@ -89,13 +144,21 @@ Default complexity limit is 20
       },
     ],
     fixable: 'code',
+    messages: {
+      tooComplex: `Message complexity is too high ({{complexity}} vs limit at {{limit}})`,
+      parserError: '{{message}}',
+    },
   },
+  defaultOptions: [{limit: 20}],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -110,5 +173,3 @@ Default complexity limit is 20
     }
   },
 }
-
-export default rule

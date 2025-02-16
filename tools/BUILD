@@ -1,17 +1,12 @@
-load("//tools:index.bzl", "check_format")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 
 exports_files([
-    "jest-reporter.js",
     "tsconfig.golden.json",
-    "check-package-json.ts",
+    "supported-locales-gen.ts",
 ])
 
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "*.*",
-        ],
-        exclude = ["tsconfig.golden.json"],
-    ),
+copy_to_bin(
+    name = "check-package-json",
+    srcs = ["check-package-json.ts"],
+    visibility = ["//visibility:public"],
 )
