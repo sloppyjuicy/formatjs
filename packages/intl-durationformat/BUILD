@@ -1,92 +1,90 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("@npm//@bazel/typescript:index.bzl", "ts_project")
-load("//tools:index.bzl", "check_format", "ts_compile")
-load("//tools:jest.bzl", "jest_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "generate_src_file", "ts_compile")
+load("//tools:vitest.bzl", "vitest")
 
-exports_files(["package.json"])
+npm_link_all_packages()
 
 PACKAGE_NAME = "intl-durationformat"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         ":dist",
     ],
+    package = "@formatjs/%s" % PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
-)
-
-SRCS = glob(["*.ts"])
+SRCS = glob([
+    "*.ts",
+    "src/**/*",
+])
 
 SRC_DEPS = [
-    "//packages/ecma402-abstract:dist",
-    "//packages/intl-localematcher:dist",
+    ":node_modules/@formatjs/ecma402-abstract",
+    ":node_modules/@formatjs/intl-localematcher",
 ]
 
 ts_compile(
     name = "dist",
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     skip_esm = False,
     deps = SRC_DEPS,
 )
 
-jest_test(
-    name = "unit",
+vitest(
+    name = "unit_test",
     srcs = SRCS + glob([
         "tests/**/*.ts",
-        "tests/**/*.tsx",
-        "tests/**/*.snap",
     ]),
-    deps = [
-        "//packages/ecma402-abstract:types",
-        "//packages/intl-localematcher:types",
-    ] + SRC_DEPS,
-)
-
-# Test262
-ts_project(
-    name = "test262-main-bundle",
-    srcs = SRCS,
-    declaration = True,
-    declaration_map = True,
-    extends = "//:tsconfig.json",
-    out_dir = "test262",
-    tsconfig = "//:tsconfig.es6.json",
     deps = SRC_DEPS,
 )
 
-generated_file_test(
+# Test262
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "CHANGELOG.md",
-            "tests/locale-data/*",
-        ],
-    ),
+# numbering-systems
+write_source_files(
+    name = "numbering-systems",
+    files = {
+        "src/numbering-systems.generated.ts": "//packages/intl-numberformat:src/numbering-systems.generated.ts",
+    },
+    visibility = ["//:__pkg__"],
 )
+
+generate_src_file(
+    name = "time-separators",
+    src = "src/time-separators.generated.ts",
+    data = [
+        "scripts/time-separators.ts",
+        "scripts/utils.ts",
+        ":node_modules/@formatjs/ecma402-abstract",
+        "//:node_modules/@types/json-stable-stringify",
+        "//:node_modules/@types/lodash",
+        "//:node_modules/cldr-core",
+        "//:node_modules/cldr-localenames-full",
+        "//:node_modules/cldr-numbers-full",
+        "//:node_modules/fast-glob",
+        "//:node_modules/json-stable-stringify",
+        "//:node_modules/lodash",
+    ],
+    entry_point = "scripts/time-separators.ts",
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
+)
+
 # package_json_test(
 #     name="package_json_test",
 #     deps=SRC_DEPS

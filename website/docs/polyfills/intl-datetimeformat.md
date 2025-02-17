@@ -13,7 +13,7 @@ Right now we only support Gregorian calendar in this polyfill. Therefore we reco
 :::
 
 :::caution
-Right now this polyfill supports daylight transition until 2038 due to [Year 2038 problem](https://en.wikipedia.org/wiki/Year_2038_problem).
+Right now this polyfill supports daylight transition until 2100 to reduce the dataset size
 :::
 
 ## Features
@@ -59,13 +59,13 @@ This package requires the following capabilities:
 
 ## Usage
 
-### Via polyfill.io
+### Via polyfill-fastly.io
 
-You can use [polyfill.io URL Builder](https://polyfill.io/v3/url-builder/) to create a polyfill script tag for `Intl.DateTimeFormat`. By default the created URL does not come with any locale data. In order to add locale data, append `Intl.DateTimeFormat.~locale.<locale>`, as well as locale data for any required polyfills, to your list of features. For example:
+You can use [polyfill-fastly.io URL Builder](https://polyfill-fastly.io/) to create a polyfill script tag for `Intl.DateTimeFormat`. By default the created URL does not come with any locale data. In order to add locale data, append `Intl.DateTimeFormat.~locale.<locale>`, as well as locale data for any required polyfills, to your list of features. For example:
 
 ```html
 <!-- Polyfill Intl.DateTimeFormat, its dependencies & `en` locale data -->
-<script src="https://polyfill.io/v3/polyfill.min.js?features=Intl.DateTimeFormat,Intl.DateTimeFormat.~locale.en,Intl.NumberFormat.~locale.en"></script>
+<script src="https://polyfill-fastly.io/v3/polyfill.min.js?features=Intl.DateTimeFormat,Intl.DateTimeFormat.~locale.en,Intl.NumberFormat.~locale.en"></script>
 ```
 
 ### Simple
@@ -81,23 +81,19 @@ import '@formatjs/intl-datetimeformat/add-all-tz' // Add ALL tz data
 ```tsx
 import {shouldPolyfill} from '@formatjs/intl-datetimeformat/should-polyfill'
 async function polyfill(locale: string) {
-  if (!shouldPolyfill(locale)) {
+  const unsupportedLocale = shouldPolyfill(locale)
+  // This locale is supported
+  if (!unsupportedLocale) {
     return
   }
   // Load the polyfill 1st BEFORE loading data
-  await import('@formatjs/intl-datetimeformat/polyfill')
+  await import('@formatjs/intl-datetimeformat/polyfill-force')
 
   // Parallelize CLDR data loading
-  const dataPolyfills = [import('@formatjs/intl-datetimeformat/add-all-tz')]
-
-  switch (locale) {
-    default:
-      dataPolyfills.push(import('@formatjs/intl-datetimeformat/locale-data/en'))
-      break
-    case 'fr':
-      dataPolyfills.push(import('@formatjs/intl-datetimeformat/locale-data/fr'))
-      break
-  }
+  const dataPolyfills = [
+    import('@formatjs/intl-datetimeformat/add-all-tz'),
+    import(`@formatjs/intl-datetimeformat/locale-data/${unsupportedLocale}`),
+  ]
   await Promise.all(dataPolyfills)
 }
 ```

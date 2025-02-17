@@ -1,26 +1,34 @@
-import {RuleTester} from 'eslint'
+import * as tsParser from '@typescript-eslint/parser'
+import {RuleTester} from '@typescript-eslint/rule-tester'
+import * as vueParser from 'vue-eslint-parser'
+import {afterAll, describe, it} from 'vitest'
 
-export const ruleTester = new RuleTester({
-  parser: require.resolve('@typescript-eslint/parser'),
-  parserOptions: {
+RuleTester.afterAll = afterAll
+RuleTester.describe = describe
+RuleTester.it = it
+export const ruleTester: RuleTester = new RuleTester({
+  languageOptions: {
+    parser: tsParser,
     ecmaVersion: 6,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        jsx: true,
+      },
     },
   },
 })
 
-export const vueRuleTester = new RuleTester({
-  parser: require.resolve('vue-eslint-parser'),
-  parserOptions: {
+export const vueRuleTester: RuleTester = new RuleTester({
+  languageOptions: {
+    parser: vueParser,
     ecmaVersion: 6,
     sourceType: 'module',
-    ecmaFeatures: {
-      globalReturn: false,
-      impliedStrict: false,
-      jsx: false,
+    parserOptions: {
+      ecmaFeatures: {
+        globalReturn: false,
+        jsx: false,
+      },
     },
   },
 })

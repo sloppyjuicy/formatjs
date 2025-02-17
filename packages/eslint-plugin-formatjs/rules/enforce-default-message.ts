@@ -1,9 +1,23 @@
-import {Rule} from 'eslint'
-import {extractMessages} from '../util'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+export enum Option {
+  literal = 'literal',
+  anything = 'anything',
+}
+
+type MessageIds = 'defaultMessage' | 'defaultMessageLiteral'
+type Options = [`${Option}`?]
+
+export const name = 'enforce-default-message'
+
+function checkNode(
+  context: RuleContext<MessageIds, Options>,
+  node: TSESTree.Node
+) {
+  const msgs = extractMessages(node, getSettings(context))
   const {
     options: [type],
   } = context
@@ -16,43 +30,51 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!defaultMessage) {
       if (type === 'literal' && messageNode) {
         context.report({
-          node: messageNode as any,
-          message: `"defaultMessage" must be:
-- a string literal or
-- template literal without variable`,
+          node: messageNode,
+          messageId: 'defaultMessageLiteral',
         })
       } else if (!messageNode) {
         context.report({
-          node: node as any,
-          message: '`defaultMessage` has to be specified in message descriptor',
+          node: node,
+          messageId: 'defaultMessage',
         })
       }
     }
   }
 }
 
-const rule: Rule.RuleModule = {
+export const rule: RuleModule<MessageIds, Options> = {
   meta: {
     type: 'problem',
     docs: {
       description: 'Enforce defaultMessage in message descriptor',
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#enforce-default-message',
+      url: 'https://formatjs.github.io/docs/tooling/linter#enforce-default-message',
     },
     fixable: 'code',
     schema: [
       {
-        enum: ['literal', 'anything'],
+        type: 'string',
+        enum: Object.keys(Option),
       },
     ],
+    messages: {
+      defaultMessageLiteral: `"defaultMessage" must be:
+- a string literal or
+- template literal without variable`,
+      defaultMessage:
+        '`defaultMessage` has to be specified in message descriptor',
+    },
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -67,5 +89,3 @@ const rule: Rule.RuleModule = {
     }
   },
 }
-
-export default rule

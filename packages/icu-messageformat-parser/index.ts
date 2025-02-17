@@ -33,7 +33,10 @@ function pruneLocation(els: MessageFormatElement[]): void {
   })
 }
 
-export function parse(message: string, opts: ParserOptions = {}) {
+export function parse(
+  message: string,
+  opts: ParserOptions = {}
+): MessageFormatElement[] {
   opts = {
     shouldParseSkeletons: true,
     requiresOtherClause: true,
@@ -55,3 +58,7 @@ export function parse(message: string, opts: ParserOptions = {}) {
   return result.val
 }
 export * from './types'
+export type {ParserOptions}
+// only for testing
+export const _Parser: typeof Parser = Parser
+export {isStructurallySame} from './manipulator'

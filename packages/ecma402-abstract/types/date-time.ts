@@ -5,12 +5,13 @@ export type Formats = Pick<
   | 'year'
   | 'month'
   | 'day'
+  | 'dayPeriod'
   | 'hour'
   | 'minute'
   | 'second'
   | 'timeZoneName'
-  | 'fractionalSecondDigits'
 > & {
+  fractionalSecondDigits?: 1 | 2 | 3
   hour12?: boolean
   pattern: string
   pattern12: string
@@ -35,7 +36,13 @@ export interface IntlDateTimeFormatInternal {
   hour: '2-digit' | 'numeric'
   minute: '2-digit' | 'numeric'
   second: '2-digit' | 'numeric'
-  timeZoneName: 'short' | 'long'
+  timeZoneName:
+    | 'short'
+    | 'long'
+    | 'shortOffset'
+    | 'longOffset'
+    | 'shortGeneric'
+    | 'longGeneric'
   fractionalSecondDigits?: 1 | 2 | 3
   hourCycle: string
   numberingSystem: string
@@ -47,7 +54,7 @@ export interface IntlDateTimeFormatInternal {
 }
 
 export interface RangePatternPart<
-  T extends RangePatternType = RangePatternType
+  T extends RangePatternType = RangePatternType,
 > {
   source: T
   pattern: string
@@ -81,6 +88,7 @@ export type TABLE_6 =
   | 'year'
   | 'month'
   | 'day'
+  | 'dayPeriod'
   | 'hour'
   | 'minute'
   | 'second'
@@ -153,8 +161,13 @@ export type IntervalFormatsData = {
   intervalFormatFallback: string
 } & Record<string, Record<string, string>>
 
-export interface DateTimeFormat extends Intl.DateTimeFormat {
+export interface DateTimeFormat
+  extends Omit<
+    Intl.DateTimeFormat,
+    'resolvedOptions' | 'formatRange' | 'formatRangeToParts' | 'formatToParts'
+  > {
   resolvedOptions(): ResolvedDateTimeFormatOptions
+  formatToParts(date?: Date | number): IntlDateTimeFormatPart[]
   formatRange(startDate: number | Date, endDate: number | Date): string
   formatRangeToParts(
     startDate: number | Date,
@@ -166,7 +179,6 @@ export interface ResolvedDateTimeFormatOptions
   extends Intl.ResolvedDateTimeFormatOptions {
   dateStyle?: 'full' | 'long' | 'medium' | 'short'
   timeStyle?: 'full' | 'long' | 'medium' | 'short'
-  hourCycle: string
   numberingSystem: string
 }
 
@@ -178,7 +190,7 @@ export type UnpackedZoneData = [
   // offsets in seconds
   number,
   // Whether it's daylight, 0|1
-  boolean
+  boolean,
 ]
 
 export type IntlDateTimeFormatPartType =

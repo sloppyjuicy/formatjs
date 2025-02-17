@@ -95,7 +95,7 @@ export const visitor: VisitNodeFunction<PluginPass & State, t.CallExpression> =
           prop =>
             [prop.get('key'), prop.get('value')] as [
               NodePath<t.Identifier>,
-              NodePath<t.StringLiteral>
+              NodePath<t.StringLiteral>,
             ]
         )
       )
@@ -201,7 +201,7 @@ export const visitor: VisitNodeFunction<PluginPass & State, t.CallExpression> =
     // Check that this is `intl.formatMessage` call
     if (isFormatMessageCall(callee, functionNames)) {
       const messageDescriptor = args[0]
-      if (messageDescriptor.isObjectExpression()) {
+      if (messageDescriptor && messageDescriptor.isObjectExpression()) {
         processMessageObject(messageDescriptor)
       }
     }

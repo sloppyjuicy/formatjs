@@ -1,0 +1,35 @@
+{
+  "name": "strict-message-types",
+  "version": "1.0.0",
+  "description": "React and TypeScript example starter project",
+  "keywords": [
+    "typescript",
+    "react",
+    "starter"
+  ],
+  "dependencies": {
+    "parcel": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "16 || 17 || 18 || 19",
+    "@types/react-dom": "16 || 17 || 18 || 19",
+    "typescript": "5"
+  },
+  "scripts": {
+    "start": "parcel src/index.html",
+    "tsc": "tsc --noEmit"
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ],
+  "alias": {
+    "@formatjs/*": "workspace:*",
+    "intl-messageformat": "../../../../bazel-out/darwin-fastbuild/bin/packages/intl-messageformat",
+    "babel-plugin-formatjs": "../../../../bazel-out/darwin-fastbuild/bin/packages/babel-plugin-formatjs",
+    "eslint-plugin-formatjs": "../../../../bazel-out/darwin-fastbuild/bin/packages/eslint-plugin-formatjs",
+    "react-intl": "../../../../bazel-out/darwin-fastbuild/bin/packages/react-intl"
+  }
+}

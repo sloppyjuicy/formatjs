@@ -15,19 +15,19 @@ module.exports = function (config) {
     sl_chrome: {
       base: 'SauceLabs',
       browserName: 'chrome',
-      version: '38', // https://polyfill.io/v3/supported-browsers/
+      version: '38', // https://polyfill-fastly.io/v3/supported-browsers/
     },
     sl_firefox: {
       base: 'SauceLabs',
       browserName: 'firefox',
-      version: '40', // https://polyfill.io/v3/supported-browsers/
+      version: '40', // https://polyfill-fastly.io/v3/supported-browsers/
     },
     sl_ie_11: {
       base: 'SauceLabs',
       browserName: 'internet explorer',
       version: '11',
     },
-  };
+  }
 
   config.set({
     basePath: '',
@@ -59,5 +59,5 @@ module.exports = function (config) {
     captureTimeout: 120000,
     customLaunchers,
     singleRun: true,
-  });
-};
+  })
+}

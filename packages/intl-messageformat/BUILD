@@ -1,41 +1,40 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("@npm//ts-node:index.bzl", "ts_node")
-load("//tools:index.bzl", "check_format", "esbuild", "package_json_test", "ts_compile")
-load("//tools:jest.bzl", "jest_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "package_json_test", "ts_compile")
+load("//tools:vitest.bzl", "vitest")
 
-exports_files(["package.json"])
+npm_link_all_packages()
+
+exports_files([
+    "package.json",
+])
 
 PACKAGE_NAME = "intl-messageformat"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         "%s.esm.js" % PACKAGE_NAME,
         "%s.iife.js" % PACKAGE_NAME,
         ":dist",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob(["src/*.ts"]) + ["index.ts"]
 
 SRC_DEPS = [
-    "//packages/icu-messageformat-parser:dist",
-    "//packages/fast-memoize:dist",
+    ":node_modules/@formatjs/icu-messageformat-parser",
+    ":node_modules/@formatjs/fast-memoize",
+    ":node_modules/@formatjs/ecma402-abstract",
 ]
 
 TESTS = glob([
@@ -43,86 +42,75 @@ TESTS = glob([
 ])
 
 TEST_DEPS = SRC_DEPS + [
-    "@npm//jasmine-expect",
+    "//:node_modules/jasmine-expect",
 ]
 
 ts_compile(
     name = "dist",
-    package_name = PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     skip_esm = False,
     skip_esm_esnext = False,
     deps = SRC_DEPS,
 )
 
-jest_test(
-    name = "unit",
+vitest(
+    name = "unit_test",
     srcs = SRCS + TESTS,
-    deps = TEST_DEPS + [
-        "//packages/icu-messageformat-parser:types",
-    ],
+    deps = SRC_DEPS + TEST_DEPS,
 )
 
 esbuild(
     name = "%s.iife" % PACKAGE_NAME,
-    args = [
-        "--global-name=IntlMessageFormat",
-    ],
-    entry_point = "lib/index.js",
-    target = "es5",
-    deps = [
-        ":dist-esm",
-    ] + SRC_DEPS,
+    srcs = [":srcs"],
+    config = {
+        "globalName": "IntlMessageFormat",
+    },
+    entry_point = "index.ts",
+    target = "es6",
+    deps = SRC_DEPS,
 )
 
 esbuild(
     name = "%s.esm" % PACKAGE_NAME,
-    args = [
-        "--global-name=IntlMessageFormat",
-    ],
-    entry_point = "lib_esnext/index.js",
+    srcs = [":srcs"],
+    config = {
+        "globalName": "IntlMessageFormat",
+    },
+    entry_point = "index.ts",
     format = "esm",
     target = "esnext",
-    deps = [
-        ":dist-esm-esnext",
-    ] + SRC_DEPS,
+    deps = SRC_DEPS,
 )
 
-generated_file_test(
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "CHANGELOG.md",
-        ],
-    ),
-)
-
-ts_node(
+# Use with `bazel run`.
+js_binary(
     name = "benchmark",
-    args = [
-        "--transpile-only",
-        "$(execpath tests/benchmark.ts)",
+    data = [":srcs"] + SRC_DEPS + [
+        "//:node_modules/@formatjs/intl-localematcher",
+        "//:node_modules/@formatjs/intl-pluralrules",
+        "//:node_modules/@swc-node/register",
+        "//:node_modules/@swc/helpers",
+        "//:node_modules/benchmark",
     ],
-    data = SRCS + SRC_DEPS + [
-        "tests/benchmark.ts",
-        "//:tsconfig.json",
-        "@npm//tslib",
-        "//packages/intl-pluralrules",
-        "//packages/intl-pluralrules:locale-data",
-        "//:tsconfig.node.json",
+    entry_point = "tests/benchmark.ts",
+    node_options = [
+        "-r",
+        "@swc-node/register",
     ],
+    tags = ["manual"],
 )
 
 package_json_test(
     name = "package_json_test",
     deps = SRC_DEPS,
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
 )

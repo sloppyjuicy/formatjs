@@ -1,27 +1,36 @@
-import enforcePlaceholders from '../rules/enforce-placeholders'
+import {name, rule} from '../rules/enforce-placeholders'
+import {dynamicMessage, emptyFnCall, noMatch, spreadJsx} from './fixtures'
 import {ruleTester} from './util'
-import {dynamicMessage, noMatch, spreadJsx, emptyFnCall} from './fixtures'
-ruleTester.run('enforce-placeholders', enforcePlaceholders, {
+ruleTester.run(name, rule, {
   valid: [
-    `intl.formatMessage({
+    {
+      code: `intl.formatMessage({
       defaultMessage: '{count, plural, one {#} other {# more}}',
       description: 'asd'
   }, {count: 1})`,
-    `intl.formatMessage({
+    },
+    {
+      code: `intl.formatMessage({
     defaultMessage: '{count, plural, one {#} other {# more}}',
     description: 'asd'
   }, {'count': 1})`,
-    `import {FormattedMessage} from 'react-intl'
-  const a = <FormattedMessage 
+    },
+    {
+      code: `import {FormattedMessage} from 'react-intl'
+  const a = <FormattedMessage
   defaultMessage="{count, plural, one {#} other {# more}}"
   values={{ count: 1}} />
         `,
-    `import {FormattedMessage} from 'react-intl'
-  const a = <FormattedMessage 
+    },
+    {
+      code: `import {FormattedMessage} from 'react-intl'
+  const a = <FormattedMessage
   defaultMessage="{count, plural, one {#} other {# more}} {bar}"
   values={{ 'count': 1, bar: 2}} />
         `,
-    `import {defineMessages, _} from 'react-intl'
+    },
+    {
+      code: `import {defineMessages, _} from 'react-intl'
   defineMessages({
     foo: {
       defaultMessage: '{count, plural, one {#} other {# more}}',
@@ -33,7 +42,9 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
     description: 'asd'
   })
   `,
-    `
+    },
+    {
+      code: `
   intl.formatMessage({
     defaultMessage: '{count, plural, one {<a>#</a>} other {# more}}',
     description: 'asd'
@@ -42,7 +53,9 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
     a: (...chunks) => <a>{chunks}</a>
   })
   `,
-    `
+    },
+    {
+      code: `
   intl.formatMessage({
     defaultMessage: '{count, plural, one {<a>#</a>} other {# more}}',
     description: 'asd'
@@ -52,6 +65,7 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
     a: (...chunks) => <a>{chunks}</a>
   })
   `,
+    },
     dynamicMessage,
     noMatch,
     spreadJsx,
@@ -80,11 +94,7 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
           defaultMessage: '{count, plural, one {#} other {# more}}',
           description: 'asd'
       })`,
-      errors: [
-        {
-          message: 'Missing value for placeholder "count"',
-        },
-      ],
+      errors: [{messageId: 'missingValue', data: {list: 'count'}}],
     },
     {
       code: `
@@ -92,7 +102,7 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
           defaultMessage: '<b>foo</b>',
           description: 'asd'
       })`,
-      errors: [{message: 'Missing value for placeholder "b"'}],
+      errors: [{messageId: 'missingValue', data: {list: 'b'}}],
     },
     {
       code: `
@@ -101,34 +111,28 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
           description: 'asd'
       }, {foo: 1})`,
       errors: [
-        {
-          message: 'Missing value for placeholder "aDifferentKey"',
-        },
+        {messageId: 'missingValue', data: {list: 'aDifferentKey'}},
+        {messageId: 'unusedValue'},
       ],
     },
     {
       code: `
         import {FormattedMessage} from 'react-intl'
-        const a = <FormattedMessage 
+        const a = <FormattedMessage
         defaultMessage="{count, plural, one {#} other {# more}}"
         />`,
-      errors: [
-        {
-          message: 'Missing value for placeholder "count"',
-        },
-      ],
+      errors: [{messageId: 'missingValue', data: {list: 'count'}}],
     },
     {
       code: `
         import {FormattedMessage} from 'react-intl'
-        const a = <FormattedMessage 
+        const a = <FormattedMessage
         defaultMessage="{count, plural, one {#} other {# more}}"
         values={{foo: 1}}
         />`,
       errors: [
-        {
-          message: 'Missing value for placeholder "count"',
-        },
+        {messageId: 'missingValue', data: {list: 'count'}},
+        {messageId: 'unusedValue'},
       ],
     },
     {
@@ -136,8 +140,18 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
         import {FormattedMessage} from 'react-intl'
         const a = <FormattedMessage id="myMessage" defaultMessage="Hello {name}" values={{ notName: "Denis" }} />`,
       errors: [
+        {messageId: 'missingValue', data: {list: 'name'}},
+        {messageId: 'unusedValue'},
+      ],
+    },
+    {
+      code: `
+        import {FormattedMessage} from 'react-intl'
+        const a = <FormattedMessage defaultMessage="Hello <bold>{name}</bold>" values={{ bold: (msg) => <strong>{msg}</strong> }} />`,
+      errors: [
         {
-          message: 'Missing value for placeholder "name"',
+          messageId: 'missingValue',
+          data: {list: 'name'},
         },
       ],
     },
@@ -152,7 +166,54 @@ ruleTester.run('enforce-placeholders', enforcePlaceholders, {
         `,
       errors: [
         {
-          message: 'Missing value for placeholder "a"',
+          messageId: 'missingValue',
+          data: {list: 'a'},
+        },
+      ],
+    },
+    {
+      code: `
+      {$t({ 
+        defaultMessage: "My name is {name}" 
+      })}
+      `,
+      errors: [
+        {
+          messageId: 'missingValue',
+          data: {list: 'name'},
+        },
+      ],
+    },
+    {
+      code: `
+        import {FormattedMessage} from 'react-intl'
+        const a = <FormattedMessage
+        defaultMessage="{count, plural, one {#} other {# more}}"
+        values={{foo: 0, count: 1, bar: 2}}
+        />`,
+      errors: [{messageId: 'unusedValue'}, {messageId: 'unusedValue'}],
+    },
+    {
+      code: `
+        import {FormattedMessage} from 'react-intl'
+        const a = <FormattedMessage
+        defaultMessage="{foo} {bar}"
+        />`,
+      errors: [{messageId: 'missingValue', data: {list: 'foo, bar'}}],
+    },
+    // Does not crash when there are parser errors
+    {
+      code: `
+      {intl.formatMessage({ 
+        defaultMessage: "My name is {name" 
+      })}
+      `,
+      errors: [
+        {
+          messageId: 'parserError',
+          data: {
+            message: 'EXPECT_ARGUMENT_CLOSING_BRACE',
+          },
         },
       ],
     },

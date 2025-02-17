@@ -1,12 +1,15 @@
 import {
-  IntlDateTimeFormatInternal,
+  DateTimeFormat,
   DateTimeFormatLocaleInternalData,
+  IntlDateTimeFormatInternal,
   IntlDateTimeFormatPart,
   TimeClip,
+  createMemoizedNumberFormat,
 } from '@formatjs/ecma402-abstract'
 
-import {DATE_TIME_PROPS} from './utils'
+import Decimal from 'decimal.js'
 import {ToLocalTime, ToLocalTimeImplDetails} from './ToLocalTime'
+import {DATE_TIME_PROPS} from './utils'
 
 function pad(n: number): string {
   if (n < 10) {
@@ -45,7 +48,9 @@ function offsetToGmtString(
 }
 
 export interface FormatDateTimePatternImplDetails {
-  getInternalSlots(dtf: Intl.DateTimeFormat): IntlDateTimeFormatInternal
+  getInternalSlots(
+    dtf: Intl.DateTimeFormat | DateTimeFormat
+  ): IntlDateTimeFormatInternal
   localeData: Record<string, DateTimeFormatLocaleInternalData>
   getDefaultTimeZone(): string
 }
@@ -56,9 +61,9 @@ export interface FormatDateTimePatternImplDetails {
  * @param x
  */
 export function FormatDateTimePattern(
-  dtf: Intl.DateTimeFormat,
+  dtf: Intl.DateTimeFormat | DateTimeFormat,
   patternParts: IntlDateTimeFormatPart[],
-  x: number,
+  x: Decimal,
   {
     getInternalSlots,
     localeData,
@@ -77,18 +82,18 @@ export function FormatDateTimePattern(
   const nfOptions = Object.create(null)
   nfOptions.useGrouping = false
 
-  const nf = new Intl.NumberFormat(locale, nfOptions)
+  const nf = createMemoizedNumberFormat(locale, nfOptions)
   const nf2Options = Object.create(null)
   nf2Options.minimumIntegerDigits = 2
   nf2Options.useGrouping = false
-  const nf2 = new Intl.NumberFormat(locale, nf2Options)
+  const nf2 = createMemoizedNumberFormat(locale, nf2Options)
   const fractionalSecondDigits = internalSlots.fractionalSecondDigits
   let nf3: Intl.NumberFormat
   if (fractionalSecondDigits !== undefined) {
     const nf3Options = Object.create(null)
     nf3Options.minimumIntegerDigits = fractionalSecondDigits
     nf3Options.useGrouping = false
-    nf3 = new Intl.NumberFormat(locale, nf3Options)
+    nf3 = createMemoizedNumberFormat(locale, nf3Options)
   }
   const tm = ToLocalTime(
     x,
@@ -107,16 +112,38 @@ export function FormatDateTimePattern(
         value: patternPart.value!,
       })
     } else if (p === 'fractionalSecondDigits') {
-      const v = Math.floor(
-        tm.millisecond * 10 ** ((fractionalSecondDigits || 0) - 3)
-      )
+      const v = new Decimal(tm.millisecond)
+        .times(10)
+        .pow((fractionalSecondDigits || 0) - 3)
+        .floor()
+        .toNumber()
       result.push({
-        // @ts-expect-error Spec is not there yet
         type: 'fractionalSecond',
         value: nf3!.format(v),
       })
     } else if (p === 'dayPeriod') {
-      // TODO
+      const f = internalSlots.dayPeriod
+      // @ts-ignore
+      const fv = tm[f]
+      result.push({type: p, value: fv})
+    } else if (p === 'timeZoneName') {
+      const f = internalSlots.timeZoneName
+      let fv
+      const {timeZoneName, gmtFormat, hourFormat} = dataLocaleData
+      const timeZone = internalSlots.timeZone || getDefaultTimeZone()
+      const timeZoneData = timeZoneName[timeZone]
+      if (timeZoneData && timeZoneData[f as 'short']) {
+        fv = timeZoneData[f as 'short']![+tm.inDST]
+      } else {
+        // Fallback to gmtFormat
+        fv = offsetToGmtString(
+          gmtFormat,
+          hourFormat,
+          tm.timeZoneOffset,
+          f as 'long'
+        )
+      }
+      result.push({type: p, value: fv})
     } else if (DATE_TIME_PROPS.indexOf(p as 'era') > -1) {
       let fv = ''
       const f = internalSlots[p as 'year'] as
@@ -155,21 +182,6 @@ export function FormatDateTimePattern(
       } else if (f === 'narrow' || f === 'short' || f === 'long') {
         if (p === 'era') {
           fv = dataLocaleData[p][f][v as 'BC']
-        } else if (p === 'timeZoneName') {
-          const {timeZoneName, gmtFormat, hourFormat} = dataLocaleData
-          const timeZone = internalSlots.timeZone || getDefaultTimeZone()
-          const timeZoneData = timeZoneName[timeZone]
-          if (timeZoneData && timeZoneData[f as 'short']) {
-            fv = timeZoneData[f as 'short']![+tm.inDST]
-          } else {
-            // Fallback to gmtFormat
-            fv = offsetToGmtString(
-              gmtFormat,
-              hourFormat,
-              tm.timeZoneOffset,
-              f as 'long'
-            )
-          }
         } else if (p === 'month') {
           fv = dataLocaleData.month[f][v - 1]
         } else {

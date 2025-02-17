@@ -42,7 +42,7 @@ Add the following command to your `package.json` `scripts`:
 }
 ```
 
-We've built https://www.npmjs.com/package/@formatjs/cli that helps you extract messages from a list of files. It uses [`@formatjs/ts-transformer`](ts-transformer.md) under the hood and should be able to extract messages if you're declaring using 1 of the mechanisms below:
+We've built this [CLI](https://www.npmjs.com/package/@formatjs/cli) that helps you extract messages from a list of files. It uses [`@formatjs/ts-transformer`](ts-transformer.md) under the hood and should be able to extract messages if you're declaring using 1 of the mechanisms below:
 
 ```tsx
 import {defineMessages, defineMessage} from 'react-intl'
@@ -91,7 +91,7 @@ values={[
 <TabItem value="npm">
 
 ```sh
-npm run extract --help
+npm run extract -- --help
 # Usage: formatjs extract [options] [files...]
 
 # Extract string messages from React components that use react-intl.
@@ -101,7 +101,7 @@ npm run extract --help
 For example:
 
 ```sh
-npm run extract "src/**/*.{ts,tsx,vue}" --out-file lang.json
+npm run extract -- "src/**/*.{ts,tsx,vue}" --out-file lang.json
 ```
 
 </TabItem>
@@ -141,7 +141,7 @@ type FormatFn = <T = Record<string, MessageDescriptor>>(
 
 This is especially useful to convert from our extracted format to a TMS-specific format.
 
-See our [builtin formatters](https://github.com/formatjs/formatjs/tree/main/packages/cli/src/formatters) for examples.
+See our [builtin formatters](https://github.com/formatjs/formatjs/tree/main/packages/cli-lib/src/formatters) for examples.
 
 ### `--out-file [path]`
 
@@ -162,10 +162,6 @@ Additional component names to extract messages from, e.g: `['FormattedFooBarMess
 ### `--additional-function-names [comma-separated-names]`
 
 Additional function names to extract messages from, e.g: `['$t']`.
-
-### `--output-empty-json`
-
-Output file with empty [] if src has no messages. For build systems like [bazel](https://bazel.build/) that relies on specific output mapping, not writing out a file can cause issues. (default: `false`)
 
 ### `--ignore [files]`
 
@@ -204,6 +200,45 @@ becomes
 The goal is to provide as many full sentences as possible since fragmented
 sentences are not translator-friendly.
 
+## Verification
+
+Verify translation files to make sure keys are translated and messages are structurally compatible with source locale.
+
+<Tabs
+groupId="npm"
+defaultValue="npm"
+values={[
+{label: 'npm', value: 'npm'},
+{label: 'yarn', value: 'yarn'},
+]}>
+<TabItem value="npm">
+
+```sh
+npm run formatjs verify [options] <translationFiles>
+```
+
+</TabItem>
+<TabItem value="yarn">
+
+```sh
+yarn formatjs verify [options] <translationFiles>
+```
+
+</TabItem>
+</Tabs>
+
+### `--source-locale <sourceLocale>`
+
+The source locale of the translation files. There must be a file named `<sourceLocale>.json` in the list of translation files. This is used as source to verify other translations against.
+
+### `--missing-keys`
+
+Whether to check for missing keys in target locale compared to source locale. This basically guarantees that no messages are untranslated.
+
+### `--structural-equality`
+
+Whether to check for structural equality of messages between source and target locale. This makes sure translations are formattable and are not missing any tokens.
+
 ## Compilation
 
 Compile extracted files from `formatjs extract` to a [react-intl](../react-intl.md) consumable
@@ -219,7 +254,7 @@ values={[
 <TabItem value="npm">
 
 ```sh
-npm run compile --help
+npm run compile -- --help
 ```
 
 </TabItem>
@@ -244,11 +279,15 @@ type CompileFn = <T = Record<string, MessageDescriptor>>(
 
 This is especially useful to convert from a TMS-specific format back to react-intl format.
 
-See our [builtin formatters](https://github.com/formatjs/formatjs/tree/main/packages/cli/src/formatters) for examples.
+See our [builtin formatters](https://github.com/formatjs/formatjs/tree/main/packages/cli-lib/src/formatters) for examples.
 
 ### `--out-file <output>`
 
 The target file that contains compiled messages.
+
+### `--preserve-whitespace`
+
+Whether to preserve whitespace and newlines in output. We typically remove consecutive whitespaces and newlines since those often gets abused for styling purposes.
 
 ### `--ast`
 
@@ -265,7 +304,12 @@ Given the English message `my name is {name}`
 | `xx-LS` | `my name is {name}SSSSSSSSSSSSSSSSSSSSSSSSS` |
 | `xx-AC` | `MY NAME IS {name}`                          |
 | `xx-HA` | `[javascript]my name is {name}`              |
-| `en-XA` | `ṁẏ ńâṁè íś {name}`                          |
+| `en-XA` | `[ḿẏ ƞȧȧḿḗḗ īş {name}]`                      |
+| `en-XB` | `‮ɯʎ uɐɯǝ ıs {name}‬`                        |
+
+:::caution
+Requires `--ast`
+:::
 
 ## Extraction and compilation with a single script
 
@@ -404,16 +448,20 @@ Whether to continue compiling messages after encountering an error parsing one o
 
 We provide the following built-in formatters to integrate with 3rd party TMSes:
 
-| TMS                                                                                       | `--format`  |
-| ----------------------------------------------------------------------------------------- | ----------- |
-| [Transifex's Structured JSON](https://docs.transifex.com/formats/json/structured-json)    | `transifex` |
-| [Smartling ICU JSON](https://help.smartling.com/hc/en-us/articles/360008000733-JSON)      | `smartling` |
-| [Lingohub](https://lingohub.com/developers/resource-files/json-localization/)             | `simple`    |
-| [Phrase](https://help.phrase.com/help/simple-json)                                        | `simple`    |
-| [Crowdin Chrome JSON](https://support.crowdin.com/file-formats/chrome-json/)              | `crowdin`   |
-| [Lokalise Structured JSON](https://docs.lokalise.com/en/articles/3229161-structured-json) | `lokalise`  |
-| [locize](https://docs.locize.com/integration/supported-formats#json-nested)               | `simple`    |
-| [SimpleLocalize](https://simplelocalize.io/docs/integrations/format-js-cli/)              | `simple`    |
+| TMS                                                                                                   | `--format`  |
+| ----------------------------------------------------------------------------------------------------- | ----------- |
+| [BabelEdit](https://www.codeandweb.com/babeledit/format-js)                                           | `simple`    |
+| [Crowdin Chrome JSON](https://support.crowdin.com/file-formats/chrome-json/)                          | `crowdin`   |
+| [Lingohub](https://lingohub.com/developers/resource-files/json-localization/)                         | `simple`    |
+| [Localize's Simple JSON](https://developers.localizejs.com/docs/simple-json-import-export)            | `simple`    |
+| [Localizely](https://localizely.com/flat-json-file/?tab=react-intl)                                   | `simple`    |
+| [locize](https://docs.locize.com/integration/supported-formats#json-nested)                           | `simple`    |
+| [Lokalise Structured JSON](https://docs.lokalise.com/en/articles/3229161-structured-json)             | `lokalise`  |
+| [Phrase](https://support.phrase.com/hc/en-us/articles/6111390065948--JSON-React-Intl-Simple-Strings-) | `simple`    |
+| [POEditor Key-Value JSON](https://poeditor.com/localization/files/key-value-json)                     | `simple`    |
+| [SimpleLocalize](https://simplelocalize.io/docs/integrations/format-js-cli/)                          | `simple`    |
+| [Smartling ICU JSON](https://help.smartling.com/hc/en-us/articles/360008000733-JSON)                  | `smartling` |
+| [Transifex's Structured JSON](https://docs.transifex.com/formats/json/structured-json)                | `transifex` |
 
 :::caution
 The `format`s of `extract` & `compile` have to be the same, which means if you `extract --format smartling`, you have to `compile --format smartling` as well & vice versa.
@@ -436,16 +484,39 @@ export const compile: CompileFn<VendorJson> = () => {}
 export const compareMessages: Comparator = () => {}
 ```
 
-Take a look at our [builtin formatter code](https://github.com/formatjs/formatjs/tree/main/packages/cli/src/formatters) for some examples.
+Take a look at our [builtin formatter code](https://github.com/formatjs/formatjs/tree/main/packages/cli-lib/src/formatters) for some examples.
 
 ## Node API
 
-`@formatjs/cli` can also be consumed programmatically like below:
+Install `@formatjs/cli-lib` instead to use programmatically
+
+<Tabs
+groupId="npm"
+defaultValue="npm"
+values={[
+{label: 'npm', value: 'npm'},
+{label: 'yarn', value: 'yarn'},
+]}>
+<TabItem value="npm">
+
+```sh
+npm i -D @formatjs/cli-lib
+```
+
+</TabItem>
+<TabItem value="yarn">
+
+```sh
+yarn add -D @formatjs/cli-lib
+```
+
+</TabItem>
+</Tabs>
 
 ### Extraction
 
 ```tsx
-import {extract} from '@formatjs/cli'
+import {extract} from '@formatjs/cli-lib'
 
 const resultAsString: Promise<string> = extract(files, {
   idInterpolationPattern: '[sha512:contenthash:base64:6]',
@@ -455,7 +526,7 @@ const resultAsString: Promise<string> = extract(files, {
 ### Compilation
 
 ```tsx
-import {compile} from '@formatjs/cli'
+import {compile} from '@formatjs/cli-lib'
 
 const resultAsString: Promise<string> = compile(files, {
   ast: true,
@@ -465,7 +536,7 @@ const resultAsString: Promise<string> = compile(files, {
 ### Custom Formatter
 
 ```tsx
-import {FormatFn, CompileFn, Comparator} from '@formatjs/cli'
+import {FormatFn, CompileFn, Comparator} from '@formatjs/cli-lib'
 
 export const format: FormatFn = msgs => msgs
 

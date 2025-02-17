@@ -1,29 +1,30 @@
 import {
-  invariant,
-  defineProperty,
-  SupportedLocales,
-  IsValidTimeZoneName,
-  CanonicalizeTimeZoneName,
-  TABLE_6,
-  DateTimeFormat as IDateTimeFormat,
   CanonicalizeLocaleList,
+  CanonicalizeTimeZoneName,
   DateTimeFormatLocaleInternalData,
-  UnpackedZoneData,
-  ToNumber,
+  DateTimeFormat as IDateTimeFormat,
   IntlDateTimeFormatInternal,
+  IsValidTimeZoneName,
   OrdinaryHasInstance,
+  SupportedLocales,
+  TABLE_6,
+  ToNumber,
+  UnpackedZoneData,
+  defineProperty,
+  invariant,
 } from '@formatjs/ecma402-abstract'
-import getInternalSlots from './get_internal_slots'
-import links from './data/links'
-import {PackedData, RawDateTimeLocaleData} from './types'
-import {unpack} from './packer'
+import Decimal from 'decimal.js'
 import {FormatDateTime} from './abstract/FormatDateTime'
-import {InitializeDateTimeFormat} from './abstract/InitializeDateTimeFormat'
-import {DATE_TIME_PROPS} from './abstract/utils'
-import {FormatDateTimeToParts} from './abstract/FormatDateTimeToParts'
-import {FormatDateTimeRangeToParts} from './abstract/FormatDateTimeRangeToParts'
 import {FormatDateTimeRange} from './abstract/FormatDateTimeRange'
+import {FormatDateTimeRangeToParts} from './abstract/FormatDateTimeRangeToParts'
+import {FormatDateTimeToParts} from './abstract/FormatDateTimeToParts'
+import {InitializeDateTimeFormat} from './abstract/InitializeDateTimeFormat'
 import {parseDateTimeSkeleton} from './abstract/skeleton'
+import {DATE_TIME_PROPS} from './abstract/utils'
+import links from './data/links'
+import getInternalSlots from './get_internal_slots'
+import {unpack} from './packer'
+import {PackedData, RawDateTimeLocaleData} from './types'
 
 const UPPERCASED_LINKS = Object.keys(links).reduce(
   (all: Record<string, string>, l) => {
@@ -73,13 +74,13 @@ const formatDescriptor = {
     if (boundFormat === undefined) {
       // https://tc39.es/proposal-unified-intl-numberformat/section11/numberformat_diff_out.html#sec-number-format-functions
       boundFormat = (date?: Date | number) => {
-        let x: number
+        let x: Decimal
         if (date === undefined) {
-          x = Date.now()
+          x = new Decimal(Date.now())
         } else {
-          x = Number(date)
+          x = ToNumber(date)
         }
-        return FormatDateTime(dtf, x, {
+        return FormatDateTime(dtf as Intl.DateTimeFormat, x, {
           getInternalSlots,
           localeData: DateTimeFormat.localeData,
           tzData: DateTimeFormat.tzData,
@@ -95,7 +96,7 @@ const formatDescriptor = {
           value: '',
         })
       } catch (e) {
-        // In older browser (e.g Chrome 36 like polyfill.io)
+        // In older browser (e.g Chrome 36 like polyfill-fastly.io)
         // TypeError: Cannot redefine property: name
       }
       internalSlots.boundFormat = boundFormat
@@ -112,7 +113,7 @@ try {
     value: 'get format',
   })
 } catch (e) {
-  // In older browser (e.g Chrome 36 like polyfill.io)
+  // In older browser (e.g Chrome 36 like polyfill-fastly.io)
   // TypeError: Cannot redefine property: name
 }
 
@@ -210,8 +211,8 @@ defineProperty(DateTimeFormat.prototype, 'resolvedOptions', {
           value === 'h11' || value === 'h12'
             ? true
             : value === 'h23' || value === 'h24'
-            ? false
-            : undefined
+              ? false
+              : undefined
         if (hour12 !== undefined) {
           ro.hour12 = hour12
         }
@@ -235,12 +236,13 @@ defineProperty(DateTimeFormat.prototype, 'resolvedOptions', {
 
 defineProperty(DateTimeFormat.prototype, 'formatToParts', {
   value: function formatToParts(date?: number | Date) {
+    let x: Decimal
     if (date === undefined) {
-      date = Date.now()
+      x = new Decimal(Date.now())
     } else {
-      date = ToNumber(date)
+      x = ToNumber(date)
     }
-    return FormatDateTimeToParts(this, date, {
+    return FormatDateTimeToParts(this, x, {
       getInternalSlots,
       localeData: DateTimeFormat.localeData,
       tzData: DateTimeFormat.tzData,
@@ -255,20 +257,24 @@ defineProperty(DateTimeFormat.prototype, 'formatRangeToParts', {
     endDate: number | Date
   ) {
     const dtf = this
-    if (typeof dtf !== 'object') {
-      throw new TypeError()
-    }
-    if (startDate === undefined || endDate === undefined) {
-      throw new TypeError('startDate/endDate cannot be undefined')
-    }
-    const x = ToNumber(startDate)
-    const y = ToNumber(endDate)
-    return FormatDateTimeRangeToParts(dtf, x, y, {
-      getInternalSlots,
-      localeData: DateTimeFormat.localeData,
-      tzData: DateTimeFormat.tzData,
-      getDefaultTimeZone: DateTimeFormat.getDefaultTimeZone,
-    })
+    invariant(typeof dtf === 'object', 'receiver is not an object', TypeError)
+    invariant(
+      startDate !== undefined && endDate !== undefined,
+      'startDate/endDate cannot be undefined',
+      TypeError
+    )
+
+    return FormatDateTimeRangeToParts(
+      dtf,
+      ToNumber(startDate),
+      ToNumber(endDate),
+      {
+        getInternalSlots,
+        localeData: DateTimeFormat.localeData,
+        tzData: DateTimeFormat.tzData,
+        getDefaultTimeZone: DateTimeFormat.getDefaultTimeZone,
+      }
+    )
   },
 })
 
@@ -278,15 +284,13 @@ defineProperty(DateTimeFormat.prototype, 'formatRange', {
     endDate: number | Date
   ) {
     const dtf = this
-    if (typeof dtf !== 'object') {
-      throw new TypeError()
-    }
-    if (startDate === undefined || endDate === undefined) {
-      throw new TypeError('startDate/endDate cannot be undefined')
-    }
-    const x = ToNumber(startDate)
-    const y = ToNumber(endDate)
-    return FormatDateTimeRange(dtf, x, y, {
+    invariant(typeof dtf === 'object', 'receiver is not an object', TypeError)
+    invariant(
+      startDate !== undefined && endDate !== undefined,
+      'startDate/endDate cannot be undefined',
+      TypeError
+    )
+    return FormatDateTimeRange(dtf, ToNumber(startDate), ToNumber(endDate), {
       getInternalSlots,
       localeData: DateTimeFormat.localeData,
       tzData: DateTimeFormat.tzData,
@@ -302,14 +306,14 @@ DateTimeFormat.__setDefaultTimeZone = (timeZone: string) => {
     timeZone = String(timeZone)
     if (
       !IsValidTimeZoneName(timeZone, {
-        tzData: DateTimeFormat.tzData,
+        zoneNamesFromData: Object.keys(DateTimeFormat.tzData),
         uppercaseLinks: UPPERCASED_LINKS,
       })
     ) {
       throw new RangeError('Invalid timeZoneName')
     }
     timeZone = CanonicalizeTimeZoneName(timeZone, {
-      tzData: DateTimeFormat.tzData,
+      zoneNames: Object.keys(DateTimeFormat.tzData),
       uppercaseLinks: UPPERCASED_LINKS,
     })
   } else {

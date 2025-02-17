@@ -4,10 +4,10 @@
  * See the accompanying LICENSE file for terms.
  */
 import {IntlMessageFormat} from '../src/core'
+import {MissingValueError} from '../src/error'
 import {PART_TYPE} from '../src/formatters'
 import {parse} from '@formatjs/icu-messageformat-parser'
-import 'jasmine-expect'
-
+import {describe, expect, it} from 'vitest'
 describe('IntlMessageFormat', function () {
   it('should be a function', function () {
     expect(typeof IntlMessageFormat).toBe('function')
@@ -28,7 +28,9 @@ describe('IntlMessageFormat', function () {
       date: ts,
     })
 
-    expect(output).toContain('My name is Anthony Pipkin, age 8')
+    expect(output).toMatch(
+      /My name is Anthony Pipkin, age 8, time \d{1,2}:\d{1,2}:\d{1,2} [AP]M, date \d{1,2}\/\d{1,2}\/\d{4}\./
+    )
     expect(output).toContain(new Intl.DateTimeFormat().format(ts))
   })
 
@@ -409,11 +411,7 @@ describe('IntlMessageFormat', function () {
         state = 'Missouri'
 
       it('should fail when the argument in the pattern is not provided', function () {
-        expect(msg.format).toThrow(
-          Error(
-            'The intl string context variable "STATE" was not provided to the string "{STATE}"'
-          )
-        )
+        expect(msg.format).toThrow(new MissingValueError('STATE', '{STATE}'))
       })
 
       it('should fail when the argument in the pattern has a typo', function () {
@@ -422,9 +420,7 @@ describe('IntlMessageFormat', function () {
         }
 
         expect(formatWithValueNameTypo).toThrow(
-          Error(
-            'The intl string context variable "STATE" was not provided to the string "{STATE}"'
-          )
+          new MissingValueError('STATE', '{STATE}')
         )
       })
 
@@ -443,9 +439,7 @@ describe('IntlMessageFormat', function () {
         }
 
         expect(formatWithMissingValue).toThrow(
-          Error(
-            'The intl string context variable "ST1ATE" was not provided to the string "{ST1ATE}"'
-          )
+          new MissingValueError('ST1ATE', '{ST1ATE}')
         )
       })
 
@@ -455,15 +449,31 @@ describe('IntlMessageFormat', function () {
         }
 
         expect(formatWithMissingValue).toThrow(
-          Error(
-            'The intl string context variable "ST1ATE" was not provided to the string "{ST1ATE}"'
-          )
+          new MissingValueError('ST1ATE', '{ST1ATE}')
         )
       })
 
       it('should succeed when the argument is correct', function () {
         expect(msg.format({ST1ATE: state})).toBe(state)
       })
+    })
+  })
+
+  describe('select message without other clause', function () {
+    const msg = '{variable, select, a {A} b {B} c {C}}'
+
+    it('should throw by default', function () {
+      expect(() => {
+        new IntlMessageFormat(msg, 'en')
+      }).toThrow(/MISSING_OTHER_CLAUSE/)
+    })
+
+    it('should not throw when requiresOtherClause is false', function () {
+      expect(() => {
+        new IntlMessageFormat(msg, 'en', undefined, {
+          requiresOtherClause: false,
+        })
+      }).not.toThrow()
     })
   })
 
@@ -890,6 +900,35 @@ describe('IntlMessageFormat', function () {
           d: new Date(0),
         })
       ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M/) // Deal w/ IE11
+      expect(
+        new IntlMessageFormat('{d, time, ::hhmmssz}', 'en-US').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmss}', 'de-DE').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}$/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmss}', 'en-US').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M$/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmssz}', 'de-DE').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[A-Z]{3}/) // Deal w/ IE11
+
+      expect(
+        new IntlMessageFormat('{d, time, ::jjmmssz}', 'en-US').format({
+          d: new Date(0),
+        })
+      ).toMatch(/\d{2}(.*?):(.*?)\d{2}(.*?):(.*?)\d{2}(.*?)[AP]M(.*?)[A-Z]{3}/) // Deal w/ IE11
     })
   }
 

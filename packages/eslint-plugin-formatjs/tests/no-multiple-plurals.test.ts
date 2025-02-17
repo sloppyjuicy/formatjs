@@ -1,18 +1,14 @@
-import noMultiplePlurals from '../rules/no-multiple-plurals'
+import {name, rule} from '../rules/no-multiple-plurals'
 import {ruleTester} from './util'
-import {dynamicMessage, noMatch, spreadJsx, emptyFnCall} from './fixtures'
-ruleTester.run('no-multiple-plurals', noMultiplePlurals, {
-  valid: [
-    `import {defineMessage} from 'react-intl'
-  defineMessage({
-      defaultMessage: 'a {placeholder}',
-      description: 'asd'
-  })`,
-    dynamicMessage,
-    noMatch,
-    spreadJsx,
-    emptyFnCall,
-  ],
+import {
+  dynamicMessage,
+  noMatch,
+  spreadJsx,
+  emptyFnCall,
+  defineMessage,
+} from './fixtures'
+ruleTester.run(name, rule, {
+  valid: [defineMessage, dynamicMessage, noMatch, spreadJsx, emptyFnCall],
   invalid: [
     {
       code: `
@@ -22,7 +18,7 @@ ruleTester.run('no-multiple-plurals', noMultiplePlurals, {
               })`,
       errors: [
         {
-          message: 'Cannot specify more than 1 plural rules',
+          messageId: 'noMultiplePlurals',
         },
       ],
     },
@@ -34,7 +30,7 @@ ruleTester.run('no-multiple-plurals', noMultiplePlurals, {
               })`,
       errors: [
         {
-          message: 'Cannot specify more than 1 plural rules',
+          messageId: 'noMultiplePlurals',
         },
       ],
     },

@@ -1,94 +1,75 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "nodejs_binary", "pkg_npm")
-load("//tools:index.bzl", "bundle_karma_tests", "check_format", "generate_src_file", "package_json_test", "ts_compile")
-load("//tools:jest.bzl", "jest_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "bundle_karma_tests", "generate_src_file", "package_json_test", "ts_compile")
+load("//tools:vitest.bzl", "vitest")
 
-exports_files(["package.json"])
+npm_link_all_packages()
+
+exports_files([
+    "package.json",
+])
 
 PACKAGE_NAME = "icu-messageformat-parser"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         ":dist",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = "@formatjs/%s" % PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob(["*.ts"])
 
 SRC_DEPS = [
-    "//packages/ecma402-abstract:dist",
-    "//packages/icu-skeleton-parser:dist",
+    ":node_modules/@formatjs/ecma402-abstract",
+    ":node_modules/@formatjs/icu-skeleton-parser",
 ]
 
 ts_compile(
     name = "dist",
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     skip_esm = False,
     deps = SRC_DEPS,
 )
 
-jest_test(
-    name = "unit",
+vitest(
+    name = "unit_test",
     srcs = SRCS + glob([
         "tests/**/*.ts",
-        "tests/**/*.tsx",
-        "tests/**/*.snap",
     ]),
-    deps = [
-        "//packages/ecma402-abstract:types",
-        "//packages/icu-skeleton-parser:types",
-    ] + SRC_DEPS,
+    deps = SRC_DEPS + [
+        "//:node_modules/@types/lodash",
+        "//:node_modules/fast-glob",
+        "//:node_modules/lodash",
+    ],
 )
 
-nodejs_binary(
+js_binary(
     name = "benchmark",
     data = [
-        ":dist",
-        "@npm//benchmark",
         "benchmark.js",
+        ":dist",
+        "//:node_modules/benchmark",
     ] + SRC_DEPS,
     entry_point = "benchmark.js",
 )
 
-generated_file_test(
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
-)
-
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "**/*.generated.ts",
-            "CHANGELOG.md",
-            "tests/__snapshots__/*",
-        ],
-    ),
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
 bundle_karma_tests(
     name = "bundled-karma-tests",
-    srcs = SRCS,
+    srcs = [":srcs"],
     tests = [
         "tests/browser-smoke.test.ts",
     ],
@@ -100,13 +81,29 @@ generate_src_file(
     src = "regex.generated.ts",
     data = [
         "scripts/global.ts",
-        "@npm//@unicode/unicode-13.0.0",
-        "@npm//regenerate",
+        "//:node_modules/@unicode/unicode-13.0.0",
+        "//:node_modules/regenerate",
     ],
     entry_point = "scripts/regex-gen.ts",
+)
+
+generate_src_file(
+    name = "time-data",
+    src = "time-data.generated.ts",
+    data = [
+        "//:node_modules/@types/json-stable-stringify",
+        "//:node_modules/cldr-core",
+        "//:node_modules/json-stable-stringify",
+    ],
+    entry_point = "scripts/time-data-gen.ts",
 )
 
 package_json_test(
     name = "package_json_test",
     deps = SRC_DEPS,
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
 )
