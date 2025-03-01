@@ -1,15 +1,16 @@
-import {PartitionNumberPattern} from './PartitionNumberPattern'
+import Decimal from 'decimal.js'
 import {ArrayCreate} from '../262'
 import {NumberFormatInternal, NumberFormatPart} from '../types/number'
+import {PartitionNumberPattern} from './PartitionNumberPattern'
 
 export function FormatNumericToParts(
   nf: Intl.NumberFormat,
-  x: number,
+  x: Decimal,
   implDetails: {
     getInternalSlots(nf: Intl.NumberFormat): NumberFormatInternal
   }
 ): NumberFormatPart[] {
-  const parts = PartitionNumberPattern(nf, x, implDetails)
+  const parts = PartitionNumberPattern(implDetails.getInternalSlots(nf), x)
   const result = ArrayCreate(0) as NumberFormatPart[]
 
   for (const part of parts) {

@@ -1,6 +1,11 @@
-bazel-out
+bazel-*
 dist
 node_modules
 .cache
 .bazelrc.user
 *.log
+.idea
+.css
+build/
+.DS_Store
+.op

@@ -1,18 +1,23 @@
 import {
-  defineProperty,
-  invariant,
+  CanonicalizeLocaleList,
+  FormatNumeric,
+  FormatNumericRange,
+  FormatNumericRangeToParts,
+  FormatNumericToParts,
+  InitializeNumberFormat,
+  NumberFormatOptions,
+  OrdinaryHasInstance,
   RawNumberLocaleData,
   SupportedLocales,
-  InitializeNumberFormat,
-  FormatNumericToParts,
-  NumberFormatOptions,
-  ToNumber,
-  CanonicalizeLocaleList,
-  OrdinaryHasInstance,
+  ToIntlMathematicalValue,
+  createMemoizedPluralRules,
+  defineProperty,
+  invariant,
 } from '@formatjs/ecma402-abstract'
 import {currencyDigitsData} from './currency-digits.generated'
 import {numberingSystemNames} from './numbering-systems.generated'
 // eslint-disable-next-line import/no-cycle
+import Decimal from 'decimal.js'
 import getInternalSlots from './get_internal_slots'
 import {
   NumberFormatConstructor,
@@ -73,21 +78,52 @@ export const NumberFormat = function (
     `Cannot load locale-dependent data for ${dataLocale}.`
   )
 
-  internalSlots.pl = new Intl.PluralRules(dataLocale, {
+  internalSlots.pl = createMemoizedPluralRules(dataLocale, {
     minimumFractionDigits: internalSlots.minimumFractionDigits,
     maximumFractionDigits: internalSlots.maximumFractionDigits,
     minimumIntegerDigits: internalSlots.minimumIntegerDigits,
     minimumSignificantDigits: internalSlots.minimumSignificantDigits,
     maximumSignificantDigits: internalSlots.maximumSignificantDigits,
-  } as any)
+  })
   return this
 } as NumberFormatConstructor
 
-function formatToParts(this: Intl.NumberFormat, x: number) {
-  return FormatNumericToParts(this, toNumeric(x) as number, {
+function formatToParts(this: Intl.NumberFormat, x: number | bigint | Decimal) {
+  return FormatNumericToParts(this, ToIntlMathematicalValue(x), {
     getInternalSlots,
   })
 }
+
+function formatRange(
+  this: Intl.NumberFormat,
+  start: number | bigint | Decimal,
+  end: number | bigint | Decimal
+) {
+  return FormatNumericRange(
+    this,
+    ToIntlMathematicalValue(start),
+    ToIntlMathematicalValue(end),
+    {
+      getInternalSlots,
+    }
+  )
+}
+
+function formatRangeToParts(
+  this: Intl.NumberFormat,
+  start: number | bigint | Decimal,
+  end: number | bigint | Decimal
+) {
+  return FormatNumericRangeToParts(
+    this,
+    ToIntlMathematicalValue(start),
+    ToIntlMathematicalValue(end),
+    {
+      getInternalSlots,
+    }
+  )
+}
+
 try {
   Object.defineProperty(formatToParts, 'name', {
     value: 'formatToParts',
@@ -96,12 +132,20 @@ try {
     configurable: true,
   })
 } catch (e) {
-  // In older browser (e.g Chrome 36 like polyfill.io)
+  // In older browser (e.g Chrome 36 like polyfill-fastly.io)
   // TypeError: Cannot redefine property: name
 }
 
 defineProperty(NumberFormat.prototype, 'formatToParts', {
   value: formatToParts,
+})
+
+defineProperty(NumberFormat.prototype, 'formatRange', {
+  value: formatRange,
+})
+
+defineProperty(NumberFormat.prototype, 'formatRangeToParts', {
+  value: formatRangeToParts,
 })
 
 defineProperty(NumberFormat.prototype, 'resolvedOptions', {
@@ -119,6 +163,13 @@ defineProperty(NumberFormat.prototype, 'resolvedOptions', {
         ro[key] = value
       }
     }
+    if (internalSlots.roundingType === 'morePrecision') {
+      ro.roundingPriority = 'morePrecision'
+    } else if (internalSlots.roundingType === 'lessPrecision') {
+      ro.roundingPriority = 'lessPrecision'
+    } else {
+      ro.roundingPriority = 'auto'
+    }
     return ro as any
   },
 })
@@ -133,19 +184,12 @@ const formatDescriptor = {
       )
     }
     const internalSlots = getInternalSlots(this as any)
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const numberFormat = this
     let boundFormat = internalSlots.boundFormat
     if (boundFormat === undefined) {
       // https://tc39.es/proposal-unified-intl-numberformat/section11/numberformat_diff_out.html#sec-number-format-functions
-      boundFormat = (value?: number | bigint) => {
-        // TODO: check bigint
-        const x = toNumeric(value) as number
-        return numberFormat
-          .formatToParts(x)
-          .map(x => x.value)
-          .join('')
-      }
+      boundFormat = (value?: number | bigint) =>
+        FormatNumeric(internalSlots, ToIntlMathematicalValue(value))
+
       try {
         // https://github.com/tc39/test262/blob/master/test/intl402/NumberFormat/prototype/format/format-function-name.js
         Object.defineProperty(boundFormat, 'name', {
@@ -155,7 +199,7 @@ const formatDescriptor = {
           value: '',
         })
       } catch (e) {
-        // In older browser (e.g Chrome 36 like polyfill.io)
+        // In older browser (e.g Chrome 36 like polyfill-fastly.io)
         // TypeError: Cannot redefine property: name
       }
       internalSlots.boundFormat = boundFormat
@@ -172,7 +216,7 @@ try {
     value: 'get format',
   })
 } catch (e) {
-  // In older browser (e.g Chrome 36 like polyfill.io)
+  // In older browser (e.g Chrome 36 like polyfill-fastly.io)
   // TypeError: Cannot redefine property: name
 }
 
@@ -234,13 +278,6 @@ NumberFormat.getDefaultLocale = () => {
   return NumberFormat.__defaultLocale
 }
 NumberFormat.polyfilled = true
-
-function toNumeric(val: any) {
-  if (typeof val === 'bigint') {
-    return val
-  }
-  return ToNumber(val)
-}
 
 try {
   // IE11 does not have Symbol

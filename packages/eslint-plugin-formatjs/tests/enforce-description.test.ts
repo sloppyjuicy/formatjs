@@ -1,8 +1,8 @@
-import enforceDescription from '../rules/enforce-description'
+import {Option, name, rule} from '../rules/enforce-description'
 import {noMatch, spreadJsx, emptyFnCall, dynamicMessage} from './fixtures'
 import {ruleTester} from './util'
 
-ruleTester.run('enforce-description', enforceDescription, {
+ruleTester.run(name, rule, {
   valid: [
     `import {defineMessage} from 'react-intl'
 defineMessage({
@@ -10,6 +10,10 @@ defineMessage({
     description: 'asd'
 })`,
     `intl.formatMessage({
+    defaultMessage: '{count, plural, one {#} other {# more}}',
+    description: 'asd'
+})`,
+    `intl.$t({
     defaultMessage: '{count, plural, one {#} other {# more}}',
     description: 'asd'
 })`,
@@ -35,7 +39,7 @@ description={'asd' + 'azz'}
             })`,
       errors: [
         {
-          message: '`description` has to be specified in message descriptor',
+          messageId: 'enforceDescription',
         },
       ],
     },
@@ -48,11 +52,10 @@ description={'asd' + 'azz'}
             })`,
       errors: [
         {
-          message:
-            '`description` has to be a string literal (not function call or variable)',
+          messageId: 'enforceDescriptionLiteral',
         },
       ],
-      options: ['literal'],
+      options: [Option.literal],
     },
     {
       code: `
@@ -61,7 +64,18 @@ description={'asd' + 'azz'}
             })`,
       errors: [
         {
-          message: '`description` has to be specified in message descriptor',
+          messageId: 'enforceDescription',
+        },
+      ],
+    },
+    {
+      code: `
+            intl.$t({
+                defaultMessage: '{count, plural, one {#} other {# more}}'
+            })`,
+      errors: [
+        {
+          messageId: 'enforceDescription',
         },
       ],
     },
@@ -75,7 +89,7 @@ description={'asd' + 'azz'}
             })`,
       errors: [
         {
-          message: '`description` has to be specified in message descriptor',
+          messageId: 'enforceDescription',
         },
       ],
     },
@@ -89,7 +103,7 @@ description={'asd' + 'azz'}
               })`,
       errors: [
         {
-          message: '`description` has to be specified in message descriptor',
+          messageId: 'enforceDescription',
         },
       ],
     },
@@ -99,7 +113,7 @@ description={'asd' + 'azz'}
             const a = <FormattedMessage defaultMessage="{count2, plural, one {#} other {# more}}"/>`,
       errors: [
         {
-          message: '`description` has to be specified in message descriptor',
+          messageId: 'enforceDescription',
         },
       ],
     },
@@ -109,7 +123,7 @@ description={'asd' + 'azz'}
             const a = <FormattedMessage defaultMessage="{count2, plural, one {#} other {# more}}"></FormattedMessage>`,
       errors: [
         {
-          message: '`description` has to be specified in message descriptor',
+          messageId: 'enforceDescription',
         },
       ],
     },

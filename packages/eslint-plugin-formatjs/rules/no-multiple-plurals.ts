@@ -1,33 +1,39 @@
-import {Rule} from 'eslint'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
-import {extractMessages} from '../util'
 import {
-  parse,
-  isPluralElement,
   MessageFormatElement,
+  isPluralElement,
+  parse,
 } from '@formatjs/icu-messageformat-parser'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
-class MultiplePlurals extends Error {
-  public message = 'Cannot specify more than 1 plural rules'
-}
+type MessageIds = 'noMultiplePlurals'
 
 function verifyAst(ast: MessageFormatElement[], pluralCount = {count: 0}) {
+  const errors: {messageId: MessageIds; data: Record<string, unknown>}[] = []
   for (const el of ast) {
     if (isPluralElement(el)) {
       pluralCount.count++
       if (pluralCount.count > 1) {
-        throw new MultiplePlurals()
+        errors.push({messageId: 'noMultiplePlurals', data: {}})
       }
       const {options} = el
       for (const selector of Object.keys(options)) {
-        verifyAst(options[selector].value, pluralCount)
+        errors.push(...verifyAst(options[selector].value, pluralCount))
       }
     }
   }
+
+  return errors
 }
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+function checkNode(
+  context: RuleContext<MessageIds, unknown[]>,
+  node: TSESTree.Node
+) {
+  const settings = getSettings(context)
+  const msgs = extractMessages(node, settings)
 
   for (const [
     {
@@ -38,38 +44,45 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!defaultMessage || !messageNode) {
       continue
     }
-    try {
-      verifyAst(
-        parse(defaultMessage, {
-          ignoreTag: context.settings.ignoreTag,
-        })
-      )
-    } catch (e) {
+    const errors = verifyAst(
+      parse(defaultMessage, {
+        ignoreTag: settings.ignoreTag,
+      })
+    )
+    for (const error of errors) {
       context.report({
-        node: messageNode as any,
-        message: e.message,
+        node,
+        ...error,
       })
     }
   }
 }
 
-const rule: Rule.RuleModule = {
+export const name = 'no-multiple-plurals'
+
+export const rule: RuleModule<MessageIds> = {
   meta: {
     type: 'problem',
     docs: {
       description: 'Disallow multiple plural rules in the same message',
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#no-multiple-plurals',
+      url: 'https://formatjs.github.io/docs/tooling/linter#no-multiple-plurals',
     },
     fixable: 'code',
+    schema: [],
+    messages: {
+      noMultiplePlurals: 'Multiple plural rules in the same message',
+    },
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -84,5 +97,3 @@ const rule: Rule.RuleModule = {
     }
   },
 }
-
-export default rule

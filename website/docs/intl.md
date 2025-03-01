@@ -74,12 +74,14 @@ Creates a cache instance to be used globally across locales. This memoizes previ
 interface IntlConfig {
   locale: string
   timeZone?: string
+  fallbackOnEmptyString?: boolean
   formats: CustomFormats
   messages: Record<string, string> | Record<string, MessageFormatElement[]>
   defaultLocale: string
   defaultRichTextElements?: Record<string, FormatXMLElementFn<React.ReactNode>>
   defaultFormats: CustomFormats
   onError(err: string): void
+  onWarn(warning: string): void
 }
 
 interface IntlFormatters {
@@ -150,6 +152,14 @@ Allows the user to provide a custom error handler. By default, error messages ar
 ### defaultRichTextElements
 
 A map of tag to rich text formatting function. This is meant to provide a centralized way to format common tags such as `<b>`, `<p>`... or enforcing certain Design System in the codebase (e.g standardized `<a>` or `<button>`...). See https://github.com/formatjs/formatjs/issues/1752 for more context.
+
+### fallbackOnEmptyString
+
+Defaults to `true`.
+
+This boolean option can be useful if you want to intentionally provide empty values for certain locales via empty strings. When `fallbackOnEmptyString` is `false`, empty strings will be returned instead of triggering the fallback procedure. This behaviour can be leveraged to "skip" content in specific locales.
+
+See [this issue](https://github.com/formatjs/formatjs/issues/607) for more context.
 
 ## formatDate
 
@@ -379,7 +389,7 @@ intl.formatDisplayName('UN', {type: 'region'})
 
 ### Message Syntax
 
-String/Message formatting is a paramount feature of React Intl and it builds on [ICU Message Formatting](https://unicode-org.github.io/icu/userguide/format_parse/messages) by using the [ICU Message Syntax](./core-concepts/icu-syntax.md). This message syntax allows for simple to complex messages to be defined, translated, and then formatted at runtime.
+String/Message formatting is a paramount feature of React Intl and it builds on [ICU Message Formatting](https://unicode-org.github.io/icu/userguide/format_parse/messages) by using the [ICU Message Syntax](./core-concepts/icu-syntax.mdx). This message syntax allows for simple to complex messages to be defined, translated, and then formatted at runtime.
 
 **Simple Message:**
 
@@ -397,7 +407,7 @@ Hello, {name}, you have {itemCount, plural,
 }.
 ```
 
-**See:** The [Message Syntax Guide](./core-concepts/icu-syntax.md).
+**See:** The [Message Syntax Guide](./core-concepts/icu-syntax.mdx).
 
 ### Message Descriptor
 
@@ -416,7 +426,7 @@ type MessageDescriptor = {
 ```
 
 :::info Extracting Message Descriptor
-You can extract inline-declared messages from source files using [our CLI](http://localhost:3000/docs/getting-started/message-extraction).
+You can extract inline-declared messages from source files using [our CLI](./getting-started/message-extraction.md).
 :::
 
 ### Message Formatting Fallbacks
@@ -445,7 +455,7 @@ function formatMessage(
     string,
     MessageFormatPrimitiveValue | React.ReactElement | FormatXMLElementFn
   >
-): string | React.ReactNodeArray
+): string | React.ReactNode[]
 ```
 
 This function will return a formatted message string. It expects a `MessageDescriptor` with at least an `id` property, and accepts a shallow `values` object which are used to fill placeholders in the message.
@@ -523,7 +533,7 @@ function defineMessages(
 function defineMessage(messageDescriptor: MessageDescriptor): MessageDescriptor
 ```
 
-These functions is exported by the `@formatjs/intl` package and is simply a _hook_ for our CLI & babel/TS plugin to use when compiling default messages defined in JavaScript source files. This function simply returns the Message Descriptor map object that's passed-in.
+These functions are exported by the `@formatjs/intl` package and are simply a _hook_ for our CLI & babel/TS plugin to use when compiling default messages defined in JavaScript source files. This function simply returns the Message Descriptor map object that's passed-in.
 
 ```ts
 import {defineMessages, defineMessage} from '@formatjs/intl'

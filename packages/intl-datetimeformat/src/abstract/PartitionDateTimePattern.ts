@@ -1,14 +1,17 @@
 import {
+  DateTimeFormat,
   IntlDateTimeFormatPart,
   IntlDateTimeFormatPartType,
+  invariant,
   PartitionPattern,
   TimeClip,
 } from '@formatjs/ecma402-abstract'
-import {ToLocalTimeImplDetails} from './ToLocalTime'
+import Decimal from 'decimal.js'
 import {
   FormatDateTimePattern,
   FormatDateTimePatternImplDetails,
 } from './FormatDateTimePattern'
+import {ToLocalTimeImplDetails} from './ToLocalTime'
 
 /**
  * https://tc39.es/ecma402/#sec-partitiondatetimepattern
@@ -16,14 +19,12 @@ import {
  * @param x
  */
 export function PartitionDateTimePattern(
-  dtf: Intl.DateTimeFormat,
-  x: number,
+  dtf: Intl.DateTimeFormat | DateTimeFormat,
+  x: Decimal,
   implDetails: ToLocalTimeImplDetails & FormatDateTimePatternImplDetails
 ): IntlDateTimeFormatPart[] {
   x = TimeClip(x)
-  if (isNaN(x)) {
-    throw new RangeError('invalid time')
-  }
+  invariant(!x.isNaN(), 'Invalid time', RangeError)
 
   /** IMPL START */
   const {getInternalSlots} = implDetails

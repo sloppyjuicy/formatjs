@@ -1,65 +1,120 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`[parseNumberSkeleton] case: "% .##" 1`] = `
-Object {
+{
   "maximumFractionDigits": 2,
   "style": "percent",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "%x100" 1`] = `
-Object {
+{
   "scale": 100,
   "style": "percent",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "()!" 1`] = `
-Object {
+{
   "currencySign": "accounting",
   "signDisplay": "always",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "()" 1`] = `
-Object {
+{
   "currencySign": "accounting",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "()?" 1`] = `
-Object {
+{
   "currencySign": "accounting",
   "signDisplay": "exceptZero",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "+!" 1`] = `
-Object {
+{
   "signDisplay": "always",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "+?" 1`] = `
-Object {
+{
   "signDisplay": "exceptZero",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "+_" 1`] = `
-Object {
+{
   "signDisplay": "never",
 }
 `;
 
+exports[`[parseNumberSkeleton] case: "." 1`] = `
+{
+  "maximumFractionDigits": 0,
+}
+`;
+
+exports[`[parseNumberSkeleton] case: ".##" 1`] = `
+{
+  "maximumFractionDigits": 2,
+}
+`;
+
+exports[`[parseNumberSkeleton] case: ".##/@##r" 1`] = `
+{
+  "maximumFractionDigits": 2,
+  "maximumSignificantDigits": 3,
+  "minimumSignificantDigits": 1,
+  "roundingPriority": "morePrecision",
+}
+`;
+
+exports[`[parseNumberSkeleton] case: ".##/@##s" 1`] = `
+{
+  "maximumFractionDigits": 2,
+  "maximumSignificantDigits": 3,
+  "minimumSignificantDigits": 1,
+  "roundingPriority": "lessPrecision",
+}
+`;
+
+exports[`[parseNumberSkeleton] case: ".##/w" 1`] = `
+{
+  "maximumFractionDigits": 2,
+  "trailingZeroDisplay": "stripIfInteger",
+}
+`;
+
+exports[`[parseNumberSkeleton] case: ".00/w currency/CAD" 1`] = `
+{
+  "currency": "CAD",
+  "maximumFractionDigits": 2,
+  "minimumFractionDigits": 2,
+  "style": "currency",
+  "trailingZeroDisplay": "stripIfInteger",
+}
+`;
+
+exports[`[parseNumberSkeleton] case: "@ rounding-mode-floor" 1`] = `
+{
+  "maximumSignificantDigits": 1,
+  "minimumSignificantDigits": 1,
+  "roundingMode": "floor",
+}
+`;
+
 exports[`[parseNumberSkeleton] case: "000" 1`] = `
-Object {
+{
   "minimumIntegerDigits": 3,
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "E+!00" 1`] = `
-Object {
+{
   "minimumIntegerDigits": 2,
   "notation": "scientific",
   "signDisplay": "always",
@@ -67,14 +122,14 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "E0" 1`] = `
-Object {
+{
   "minimumIntegerDigits": 1,
   "notation": "scientific",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "EE+?000" 1`] = `
-Object {
+{
   "minimumIntegerDigits": 3,
   "notation": "engineering",
   "signDisplay": "exceptZero",
@@ -82,21 +137,21 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "compact-long" 1`] = `
-Object {
+{
   "compactDisplay": "long",
   "notation": "compact",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "compact-short" 1`] = `
-Object {
+{
   "compactDisplay": "short",
   "notation": "compact",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "currency/CAD ." 1`] = `
-Object {
+{
   "currency": "CAD",
   "maximumFractionDigits": 0,
   "style": "currency",
@@ -104,7 +159,7 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "currency/GBP .0*/@@@" 1`] = `
-Object {
+{
   "currency": "GBP",
   "maximumSignificantDigits": 3,
   "minimumFractionDigits": 1,
@@ -114,7 +169,7 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "currency/GBP .00##/@@@ unit-width-full-name" 1`] = `
-Object {
+{
   "currency": "GBP",
   "currencyDisplay": "name",
   "maximumFractionDigits": 4,
@@ -127,7 +182,7 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "currency/GBP .00##/@@@" 1`] = `
-Object {
+{
   "currency": "GBP",
   "maximumFractionDigits": 4,
   "maximumSignificantDigits": 3,
@@ -138,26 +193,26 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "engineering" 1`] = `
-Object {
+{
   "notation": "engineering",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "engineering/sign-except-zero" 1`] = `
-Object {
+{
   "notation": "engineering",
   "signDisplay": "exceptZero",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "integer-width/*000" 1`] = `
-Object {
+{
   "minimumIntegerDigits": 3,
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "measure-unit/length-meter .00##/@@@ unit-width-full-name" 1`] = `
-Object {
+{
   "currencyDisplay": "name",
   "maximumFractionDigits": 4,
   "maximumSignificantDigits": 3,
@@ -170,7 +225,7 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "measure-unit/length-meter .00##/@@@" 1`] = `
-Object {
+{
   "maximumFractionDigits": 4,
   "maximumSignificantDigits": 3,
   "minimumFractionDigits": 2,
@@ -181,20 +236,20 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "notation-simple" 1`] = `
-Object {
+{
   "notation": "standard",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "percent .##" 1`] = `
-Object {
+{
   "maximumFractionDigits": 2,
   "style": "percent",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "percent .0###" 1`] = `
-Object {
+{
   "maximumFractionDigits": 4,
   "minimumFractionDigits": 1,
   "style": "percent",
@@ -202,7 +257,7 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "percent .00/@##" 1`] = `
-Object {
+{
   "maximumFractionDigits": 2,
   "maximumSignificantDigits": 3,
   "minimumFractionDigits": 2,
@@ -212,7 +267,7 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "percent .00/@@@" 1`] = `
-Object {
+{
   "maximumFractionDigits": 2,
   "maximumSignificantDigits": 3,
   "minimumFractionDigits": 2,
@@ -222,7 +277,7 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "percent .00/@@@@*" 1`] = `
-Object {
+{
   "maximumFractionDigits": 2,
   "minimumFractionDigits": 2,
   "style": "percent",
@@ -230,87 +285,87 @@ Object {
 `;
 
 exports[`[parseNumberSkeleton] case: "percent .000*" 1`] = `
-Object {
+{
   "minimumFractionDigits": 3,
   "style": "percent",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "percent scale/0.01" 1`] = `
-Object {
+{
   "scale": 0.01,
   "style": "percent",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "scientific" 1`] = `
-Object {
+{
   "notation": "scientific",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "scientific/+ee/sign-always" 1`] = `
-Object {
+{
   "notation": "scientific",
   "signDisplay": "always",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "scientific/sign-always" 1`] = `
-Object {
+{
   "notation": "scientific",
   "signDisplay": "always",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "sign-accounting" 1`] = `
-Object {
+{
   "currencySign": "accounting",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "sign-accounting-always" 1`] = `
-Object {
+{
   "currencySign": "accounting",
   "signDisplay": "always",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "sign-accounting-except-zero" 1`] = `
-Object {
+{
   "currencySign": "accounting",
   "signDisplay": "exceptZero",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "sign-always" 1`] = `
-Object {
+{
   "signDisplay": "always",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "sign-auto" 1`] = `
-Object {
+{
   "signDisplay": "auto",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "sign-except-zero" 1`] = `
-Object {
+{
   "signDisplay": "exceptZero",
 }
 `;
 
 exports[`[parseNumberSkeleton] case: "sign-never" 1`] = `
-Object {
+{
   "signDisplay": "never",
 }
 `;
 
-exports[`case: "" 1`] = `Object {}`;
+exports[`case: "" 1`] = `{}`;
 
 exports[`case: "EEE, MMM d, ''yy" 1`] = `
-Object {
+{
   "day": "numeric",
   "month": "short",
   "weekday": "short",
@@ -318,8 +373,17 @@ Object {
 }
 `;
 
+exports[`case: "EEEE, d MMMM yyyy" 1`] = `
+{
+  "day": "numeric",
+  "month": "long",
+  "weekday": "long",
+  "year": "numeric",
+}
+`;
+
 exports[`case: "h:mm a" 1`] = `
-Object {
+{
   "hour": "numeric",
   "hour12": true,
   "hourCycle": "h12",
@@ -328,7 +392,7 @@ Object {
 `;
 
 exports[`case: "yyyy.MM.dd G 'at' HH:mm:ss zzzz" 1`] = `
-Object {
+{
   "day": "2-digit",
   "era": "short",
   "hour": "2-digit",

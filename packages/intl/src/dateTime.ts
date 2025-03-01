@@ -1,11 +1,9 @@
-import {Formatters, IntlFormatters, CustomFormats, OnErrorFn} from './types'
+import {CustomFormats, Formatters, IntlFormatters, OnErrorFn} from './types'
 
+import {IntlFormatError} from './error'
 import {filterProps, getNamedFormat} from './utils'
-import {IntlError, IntlErrorCode} from './error'
-import {DateTimeFormat} from '@formatjs/ecma402-abstract'
 
 const DATE_TIME_FORMAT_OPTIONS: Array<keyof Intl.DateTimeFormatOptions> = [
-  'localeMatcher',
   'formatMatcher',
 
   'timeZone',
@@ -26,6 +24,7 @@ const DATE_TIME_FORMAT_OPTIONS: Array<keyof Intl.DateTimeFormatOptions> = [
   'calendar',
   // 'dayPeriod',
   'numberingSystem',
+  'fractionalSecondDigits',
 ]
 
 export function getFormatter(
@@ -40,10 +39,10 @@ export function getFormatter(
     formats: CustomFormats
     onError: OnErrorFn
   },
-  type: 'date' | 'time',
+  type: 'date' | 'time' | 'dateTimeRange',
   getDateTimeFormat: Formatters['getDateTimeFormat'],
   options: Parameters<IntlFormatters['formatDate']>[1] = {}
-): DateTimeFormat {
+): Intl.DateTimeFormat {
   const {format} = options
   const defaults = {
     ...(timeZone && {timeZone}),
@@ -53,9 +52,8 @@ export function getFormatter(
   let filteredOptions = filterProps(
     options,
     DATE_TIME_FORMAT_OPTIONS,
-    // @ts-expect-error es2020 has a lot stuff from es2021 bleed in
     defaults
-  )
+  ) as Intl.DateTimeFormatOptions
 
   if (
     type === 'time' &&
@@ -87,7 +85,7 @@ export function formatDate(
     return getFormatter(config, 'date', getDateTimeFormat, options).format(date)
   } catch (e) {
     config.onError(
-      new IntlError(IntlErrorCode.FORMAT_ERROR, 'Error formatting date.', e)
+      new IntlFormatError('Error formatting date.', config.locale, e)
     )
   }
 
@@ -110,7 +108,7 @@ export function formatTime(
     return getFormatter(config, 'time', getDateTimeFormat, options).format(date)
   } catch (e) {
     config.onError(
-      new IntlError(IntlErrorCode.FORMAT_ERROR, 'Error formatting time.', e)
+      new IntlFormatError('Error formatting time.', config.locale, e)
     )
   }
 
@@ -121,32 +119,29 @@ export function formatDateTimeRange(
   config: {
     locale: string
     timeZone?: string
+    formats: CustomFormats
     onError: OnErrorFn
   },
   getDateTimeFormat: Formatters['getDateTimeFormat'],
   ...[from, to, options = {}]: Parameters<IntlFormatters['formatDateTimeRange']>
 ): string {
-  const {timeZone, locale, onError} = config
-
-  const filteredOptions = filterProps(
-    options,
-    DATE_TIME_FORMAT_OPTIONS,
-    timeZone ? {timeZone} : {}
-  )
+  const fromDate = typeof from === 'string' ? new Date(from || 0) : from
+  const toDate = typeof to === 'string' ? new Date(to || 0) : to
 
   try {
-    return getDateTimeFormat(locale, filteredOptions).formatRange(from, to)
+    return getFormatter(
+      config,
+      'dateTimeRange',
+      getDateTimeFormat,
+      options
+    ).formatRange(fromDate, toDate)
   } catch (e) {
-    onError(
-      new IntlError(
-        IntlErrorCode.FORMAT_ERROR,
-        'Error formatting date time range.',
-        e
-      )
+    config.onError(
+      new IntlFormatError('Error formatting date time range.', config.locale, e)
     )
   }
 
-  return String(from)
+  return String(fromDate)
 }
 
 export function formatDateToParts(
@@ -166,10 +161,10 @@ export function formatDateToParts(
       'date',
       getDateTimeFormat,
       options
-    ).formatToParts(date)
+    ).formatToParts(date) as Intl.DateTimeFormatPart[] // TODO: remove this when https://github.com/microsoft/TypeScript/pull/50402 is merged
   } catch (e) {
     config.onError(
-      new IntlError(IntlErrorCode.FORMAT_ERROR, 'Error formatting date.', e)
+      new IntlFormatError('Error formatting date.', config.locale, e)
     )
   }
 
@@ -194,10 +189,10 @@ export function formatTimeToParts(
       'time',
       getDateTimeFormat,
       options
-    ).formatToParts(date)
+    ).formatToParts(date) as Intl.DateTimeFormatPart[] // TODO: remove this when https://github.com/microsoft/TypeScript/pull/50402 is merged
   } catch (e) {
     config.onError(
-      new IntlError(IntlErrorCode.FORMAT_ERROR, 'Error formatting time.', e)
+      new IntlFormatError('Error formatting time.', config.locale, e)
     )
   }
 

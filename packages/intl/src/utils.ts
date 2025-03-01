@@ -1,45 +1,69 @@
+import {NumberFormatOptions} from '@formatjs/ecma402-abstract'
+import {Cache, memoize, strategies} from '@formatjs/fast-memoize'
+import {IntlMessageFormat} from 'intl-messageformat'
+import {UnsupportedFormatterError} from './error'
 import {
-  IntlCache,
   CustomFormats,
   Formatters,
+  IntlCache,
   OnErrorFn,
+  OnWarnFn,
   ResolvedIntlConfig,
 } from './types'
-import {IntlMessageFormat} from 'intl-messageformat'
-import memoize, {Cache, strategies} from '@formatjs/fast-memoize'
-import {UnsupportedFormatterError} from './error'
-import {DateTimeFormat} from '@formatjs/ecma402-abstract'
+
+export function invariant(
+  condition: boolean,
+  message: string,
+  Err: any = Error
+): asserts condition {
+  if (!condition) {
+    throw new Err(message)
+  }
+}
 
 export function filterProps<T extends Record<string, any>, K extends string>(
   props: T,
-  whitelist: Array<K>,
+  allowlist: Array<K>,
   defaults: Partial<T> = {}
 ): Pick<T, K> {
-  return whitelist.reduce((filtered, name) => {
-    if (name in props) {
-      filtered[name] = props[name]
-    } else if (name in defaults) {
-      filtered[name] = defaults[name]!
-    }
+  return allowlist.reduce(
+    (filtered, name) => {
+      if (name in props) {
+        filtered[name] = props[name]
+      } else if (name in defaults) {
+        filtered[name] = defaults[name]!
+      }
 
-    return filtered
-  }, {} as Pick<T, K>)
+      return filtered
+    },
+    {} as Pick<T, K>
+  )
 }
 
 const defaultErrorHandler: OnErrorFn = error => {
+  // @ts-ignore just so we don't need to declare dep on @types/node
   if (process.env.NODE_ENV !== 'production') {
     console.error(error)
   }
 }
 
+const defaultWarnHandler: OnWarnFn = (warning: string) => {
+  // @ts-ignore just so we don't need to declare dep on @types/node
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(warning)
+  }
+}
+
 export const DEFAULT_INTL_CONFIG: Pick<
   ResolvedIntlConfig<any>,
+  | 'fallbackOnEmptyString'
   | 'formats'
   | 'messages'
   | 'timeZone'
   | 'defaultLocale'
   | 'defaultFormats'
   | 'onError'
+  | 'onWarn'
 > = {
   formats: {},
   messages: {},
@@ -48,7 +72,10 @@ export const DEFAULT_INTL_CONFIG: Pick<
   defaultLocale: 'en',
   defaultFormats: {},
 
+  fallbackOnEmptyString: true,
+
   onError: defaultErrorHandler,
+  onWarn: defaultWarnHandler,
 }
 
 export function createIntlCache(): IntlCache {
@@ -63,7 +90,9 @@ export function createIntlCache(): IntlCache {
   }
 }
 
-function createFastMemoizeCache<V>(store: Record<string, V>): Cache<string, V> {
+function createFastMemoizeCache<V>(
+  store: Record<string, V | undefined>
+): Cache<string, V> {
   return {
     create() {
       return {
@@ -89,7 +118,7 @@ export function createFormatters(
   const ListFormat = (Intl as any).ListFormat
   const DisplayNames = (Intl as any).DisplayNames
   const getDateTimeFormat = memoize(
-    (...args) => new Intl.DateTimeFormat(...args) as DateTimeFormat,
+    (...args) => new Intl.DateTimeFormat(...args),
     {
       cache: createFastMemoizeCache(cache.dateTime),
       strategy: strategies.variadic,
@@ -146,7 +175,7 @@ export function getNamedFormat<T extends keyof CustomFormats>(
   name: string,
   onError: OnErrorFn
 ):
-  | Intl.NumberFormatOptions
+  | NumberFormatOptions
   | Intl.DateTimeFormatOptions
   | Intl.RelativeTimeFormatOptions
   | undefined {

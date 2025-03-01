@@ -1,13 +1,15 @@
-import noComplexSelectors from '../rules/no-complex-selectors'
+import {rule, name} from '../rules/no-complex-selectors'
 import {ruleTester} from './util'
-import {dynamicMessage, noMatch, spreadJsx, emptyFnCall} from './fixtures'
-ruleTester.run('no-complex-selectors', noComplexSelectors, {
+import {
+  dynamicMessage,
+  noMatch,
+  spreadJsx,
+  emptyFnCall,
+  defineMessage,
+} from './fixtures'
+ruleTester.run(name, rule, {
   valid: [
-    `import {defineMessage} from 'react-intl'
-  defineMessage({
-      defaultMessage: 'a {placeholder}',
-      description: 'asd'
-  })`,
+    defineMessage,
     dynamicMessage,
     noMatch,
     spreadJsx,
@@ -26,6 +28,22 @@ ruleTester.run('no-complex-selectors', noComplexSelectors, {
     },
   ],
   invalid: [
+    // Syntax error
+    {
+      code: `
+        import {defineMessage} from 'react-intl'
+        defineMessage({
+            defaultMessage: '{'
+        })
+      `,
+      options: [{limit: 1}],
+      errors: [
+        {
+          messageId: 'parserError',
+          data: {message: 'EXPECT_ARGUMENT_CLOSING_BRACE'},
+        },
+      ],
+    },
     {
       code: `
               import {defineMessage} from 'react-intl'
@@ -37,11 +55,7 @@ ruleTester.run('no-complex-selectors', noComplexSelectors, {
           limit: 1,
         },
       ],
-      errors: [
-        {
-          message: 'Message complexity is too high (4 vs limit at 1)',
-        },
-      ],
+      errors: [{messageId: 'tooComplex', data: {complexity: 4, limit: 1}}],
     },
     {
       code: `
@@ -70,11 +84,7 @@ ruleTester.run('no-complex-selectors', noComplexSelectors, {
           limit: 3,
         },
       ],
-      errors: [
-        {
-          message: 'Message complexity is too high (16 vs limit at 3)',
-        },
-      ],
+      errors: [{messageId: 'tooComplex', data: {complexity: 16, limit: 3}}],
     },
     {
       code: `
@@ -89,7 +99,11 @@ ruleTester.run('no-complex-selectors', noComplexSelectors, {
       ],
       errors: [
         {
-          message: 'Message complexity is too high (3 vs limit at 1)',
+          messageId: 'tooComplex',
+          data: {
+            complexity: 3,
+            limit: 1,
+          },
         },
       ],
     },
@@ -106,7 +120,32 @@ ruleTester.run('no-complex-selectors', noComplexSelectors, {
       ],
       errors: [
         {
-          message: 'Message complexity is too high (4 vs limit at 1)',
+          messageId: 'tooComplex',
+          data: {
+            complexity: 4,
+            limit: 1,
+          },
+        },
+      ],
+    },
+    {
+      code: `
+              import {defineMessage} from 'react-intl'
+              defineMessage({
+                  defaultMessage: '<b>{p1, plural, one{one} other{other}}</b>'
+              })`,
+      options: [
+        {
+          limit: 1,
+        },
+      ],
+      errors: [
+        {
+          messageId: 'tooComplex',
+          data: {
+            complexity: 2,
+            limit: 1,
+          },
         },
       ],
     },

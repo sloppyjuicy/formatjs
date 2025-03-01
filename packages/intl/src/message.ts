@@ -1,16 +1,15 @@
-import {invariant} from '@formatjs/ecma402-abstract'
+import {CustomFormats, Formatters, MessageDescriptor, OnErrorFn} from './types'
 
-import {Formatters, MessageDescriptor, CustomFormats, OnErrorFn} from './types'
-
+import {MessageFormatElement, TYPE} from '@formatjs/icu-messageformat-parser'
 import {
-  IntlMessageFormat,
   FormatXMLElementFn,
-  PrimitiveType,
+  IntlMessageFormat,
   Formatters as IntlMessageFormatFormatters,
   Options,
+  PrimitiveType,
 } from 'intl-messageformat'
-import {MissingTranslationError, MessageFormatError} from './error'
-import {TYPE, MessageFormatElement} from '@formatjs/icu-messageformat-parser'
+import {MessageFormatError, MissingTranslationError} from './error'
+import {invariant} from './utils'
 
 function setTimeZoneInOptions(
   opts: Record<string, Intl.DateTimeFormatOptions>,
@@ -64,28 +63,14 @@ function deepMergeFormatsAndSetTimeZone(
   }
 }
 
-export function formatMessage(
-  config: {
-    locale: string
-    timeZone?: string
-    formats: CustomFormats
-    messages: Record<string, string> | Record<string, MessageFormatElement[]>
-    defaultLocale: string
-    defaultFormats: CustomFormats
-    onError: OnErrorFn
-  },
-  state: Formatters,
-  messageDescriptor?: MessageDescriptor,
-  values?: Record<string, PrimitiveType | FormatXMLElementFn<string, string>>,
-  opts?: Options
-): string
-export function formatMessage<T>(
+export type FormatMessageFn<T> = (
   {
     locale,
     formats,
     messages,
     defaultLocale,
     defaultFormats,
+    fallbackOnEmptyString,
     onError,
     timeZone,
     defaultRichTextElements,
@@ -97,22 +82,41 @@ export function formatMessage<T>(
     defaultLocale: string
     defaultFormats: CustomFormats
     defaultRichTextElements?: Record<string, FormatXMLElementFn<T>>
+    fallbackOnEmptyString?: boolean
     onError: OnErrorFn
   },
   state: IntlMessageFormatFormatters & Pick<Formatters, 'getMessageFormat'>,
-  messageDescriptor: MessageDescriptor = {id: ''},
+  messageDescriptor: MessageDescriptor,
   values?: Record<string, PrimitiveType | T | FormatXMLElementFn<T>>,
   opts?: Options
-): Array<T | string> | string | T {
+) => T extends string ? string : Array<T | string> | string | T
+
+export const formatMessage: FormatMessageFn<any> = (
+  {
+    locale,
+    formats,
+    messages,
+    defaultLocale,
+    defaultFormats,
+    fallbackOnEmptyString,
+    onError,
+    timeZone,
+    defaultRichTextElements,
+  },
+  state,
+  messageDescriptor = {id: ''},
+  values,
+  opts
+) => {
   const {id: msgId, defaultMessage} = messageDescriptor
 
   // `id` is a required field of a Message Descriptor.
   invariant(
     !!msgId,
     `[@formatjs/intl] An \`id\` must be provided to format a message. You can either:
-1. Configure your build toolchain with [babel-plugin-formatjs](https://formatjs.io/docs/tooling/babel-plugin)
-or [@formatjs/ts-transformer](https://formatjs.io/docs/tooling/ts-transformer) OR
-2. Configure your \`eslint\` config to include [eslint-plugin-formatjs](https://formatjs.io/docs/tooling/linter#enforce-id)
+1. Configure your build toolchain with [babel-plugin-formatjs](https://formatjs.github.io/docs/tooling/babel-plugin)
+or [@formatjs/ts-transformer](https://formatjs.github.io/docs/tooling/ts-transformer) OR
+2. Configure your \`eslint\` config to include [eslint-plugin-formatjs](https://formatjs.github.io/docs/tooling/linter#enforce-id)
 to autofix this issue`
   )
   const id = String(msgId)
@@ -150,6 +154,10 @@ to autofix this issue`
   defaultFormats = deepMergeFormatsAndSetTimeZone(defaultFormats, timeZone)
 
   if (!message) {
+    if (fallbackOnEmptyString === false && message === '') {
+      return message
+    }
+
     if (
       !defaultMessage ||
       (locale && locale.toLowerCase() !== defaultLocale.toLowerCase())
@@ -191,7 +199,7 @@ to autofix this issue`
       ...(opts || {}),
     })
 
-    return formatter.format<T>(values)
+    return formatter.format<any>(values)
   } catch (e) {
     onError(
       new MessageFormatError(

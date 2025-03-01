@@ -1,31 +1,24 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("//tools:index.bzl", "check_format", "package_json_test", "ts_compile")
-load("//tools:jest.bzl", "jest_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "package_json_test", "ts_compile_node")
+load("//tools:vitest.bzl", "vitest")
 
-exports_files(["package.json"])
+npm_link_all_packages()
 
 PACKAGE_NAME = "babel-plugin-formatjs"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         ":dist",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob(
@@ -34,63 +27,36 @@ SRCS = glob(
 )
 
 SRC_DEPS = [
-    "//packages/icu-messageformat-parser:dist",
-    "//packages/ts-transformer:dist",
-    "@npm//@babel/helper-plugin-utils",
-    "@npm//@babel/core",
-    "@npm//@babel/types",
-    "@npm//@types/babel__core",
-    "@npm//@types/babel__helper-plugin-utils",
-    "@npm//@babel/plugin-syntax-jsx",
-    "@npm//@babel/traverse",
+    "//:node_modules/@babel/core",
+    "//:node_modules/@babel/helper-plugin-utils",
+    "//:node_modules/@babel/plugin-syntax-jsx",
+    "//:node_modules/@babel/traverse",
+    "//:node_modules/@babel/types",
+    ":node_modules/@formatjs/icu-messageformat-parser",
+    ":node_modules/@formatjs/ts-transformer",
+    "//:node_modules/@types/babel__core",
+    "//:node_modules/@types/babel__helper-plugin-utils",
+    "//:node_modules/@types/babel__traverse",
 ]
 
-ts_compile(
+ts_compile_node(
     name = "dist",
-    package_name = PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     deps = SRC_DEPS,
 )
 
-jest_test(
-    name = "unit",
+vitest(
+    name = "unit_test",
     srcs = SRCS + glob(
         [
-            "tests/**/*.ts",
-            "tests/**/*.tsx",
-            "tests/**/*.js",
-            "tests/**/*.json",
+            "tests/**/*.test.ts",
         ],
         exclude = ["tests/vue/**/*"],
     ),
-    snapshots = glob([
-        "tests/**/*.snap",
-    ]),
-    deps = [
-        "//packages/icu-messageformat-parser:types",
-        "//packages/ts-transformer:types",
-        "@npm//@babel/preset-env",
-        "@npm//@babel/preset-react",
-    ] + SRC_DEPS,
-)
-
-jest_test(
-    name = "integration-vue",
-    srcs = ["tests/vue/integration.test.ts"] + glob([
-        "tests/vue/fixtures/*",
-    ]),
-    flaky = True,
-    deps = [
-        ":dist",
-        ":types",
-        "//packages/icu-messageformat-parser:types",
-        "@npm//@types/node",
-        "@npm//@types/webpack",
-        "@npm//@vue/compiler-sfc",
-        "@npm//babel-loader",
-        "@npm//vue",
-        "@npm//vue-loader",
-        "@npm//webpack",
+    deps = SRC_DEPS + [
+        "//:node_modules/@babel/preset-env",
+        "//:node_modules/@babel/preset-react",
+        "//packages/babel-plugin-formatjs/tests/fixtures",
     ],
 )
 
@@ -99,22 +65,12 @@ package_json_test(
     deps = SRC_DEPS,
 )
 
-generated_file_test(
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "CHANGELOG.md",
-            "options.ts",
-            "tests/__snapshots__/*",
-        ],
-    ),
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
 )

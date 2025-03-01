@@ -16,7 +16,7 @@ import {
 import * as AVAILABLE_LOCALES from 'cldr-core/availableLocales.json'
 import {collapseSingleValuePluralRule, PLURAL_RULES} from './utils'
 
-export type Numbers = typeof NumbersData['main']['ar']['numbers']
+export type Numbers = (typeof NumbersData)['main']['ar']['numbers']
 
 const COUNTS = [
   '1000',
@@ -34,7 +34,8 @@ const COUNTS = [
 ] as Array<DecimalFormatNum>
 
 function reduceNumCount<
-  T extends Numbers['decimalFormats-numberSystem-latn']['long']['decimalFormat']
+  T extends
+    Numbers['decimalFormats-numberSystem-latn']['long']['decimalFormat'],
 >(d: T): Record<DecimalFormatNum, LDMLPluralRuleMap<string>> {
   return COUNTS.reduce(
     (all: Record<DecimalFormatNum, LDMLPluralRuleMap<string>>, num) => {
@@ -61,7 +62,16 @@ function extractNumbers(d: Numbers): RawNumberData {
   return {
     nu,
     symbols: nu.reduce((all: Record<string, SymbolsData>, ns) => {
-      all[ns] = d[`symbols-numberSystem-${ns}` as 'symbols-numberSystem-latn']
+      const rangeSign = d[
+        `miscPatterns-numberSystem-${ns}` as 'miscPatterns-numberSystem-latn'
+      ].range
+        .match(/[^{}01]/)!
+        .at(0) as string
+
+      all[ns] = {
+        ...d[`symbols-numberSystem-${ns}` as 'symbols-numberSystem-latn'],
+        rangeSign,
+      }
       return all
     }, {}),
     percent: nu.reduce((all: RawNumberData['percent'], ns) => {

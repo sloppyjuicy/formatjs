@@ -43,13 +43,13 @@ yarn add @formatjs/intl-pluralrules
 
 ## Usage
 
-### Via polyfill.io
+### Via polyfill-fastly.io
 
-You can use [polyfill.io URL Builder](https://polyfill.io/v3/url-builder/) to create a polyfill script tag for `Intl.PluralRules`. By default the created URL does not come with any locale data. In order to add locale data, append `Intl.PluralRules.~locale.<locale>` to your list of features. For example:
+You can use [polyfill-fastly.io URL Builder](https://polyfill-fastly.io/) to create a polyfill script tag for `Intl.PluralRules`. By default the created URL does not come with any locale data. In order to add locale data, append `Intl.PluralRules.~locale.<locale>` to your list of features. For example:
 
 ```html
 <!-- Polyfill Intl.PluralRules, its dependencies & `en` locale data -->
-<script src="https://polyfill.io/v3/polyfill.min.js?features=Intl.PluralRules,Intl.PluralRules.~locale.en"></script>
+<script src="https://polyfill-fastly.io/v3/polyfill.min.js?features=Intl.PluralRules,Intl.PluralRules.~locale.en"></script>
 ```
 
 ### Simple
@@ -59,24 +59,27 @@ import '@formatjs/intl-pluralrules/polyfill'
 import '@formatjs/intl-pluralrules/locale-data/en' // locale-data for en
 ```
 
+### React Native
+
+The polyfill conditional detection code runs [very slowly on Android](https://github.com/formatjs/formatjs/issues/4463) and can slow down your app's startup time by seconds. Since React Native uses Hermes which does not support `Intl.PluralRules`, import `/polyfill-force` instead for much better performance:
+
+```tsx
+import '@formatjs/intl-pluralrules/polyfill-force' // instead of /polyfill
+import '@formatjs/intl-pluralrules/locale-data/en'
+```
+
 ### Dynamic import + capability detection
 
 ```tsx
 import {shouldPolyfill} from '@formatjs/intl-pluralrules/should-polyfill'
 async function polyfill(locale: string) {
-  if (!shouldPolyfill(locale)) {
+  const unsupportedLocale = shouldPolyfill(locale)
+  // This locale is supported
+  if (!unsupportedLocale) {
     return
   }
   // Load the polyfill 1st BEFORE loading data
-  await import('@formatjs/intl-pluralrules/polyfill')
-
-  switch (locale) {
-    default:
-      await import('@formatjs/intl-pluralrules/locale-data/en')
-      break
-    case 'fr':
-      await import('@formatjs/intl-pluralrules/locale-data/fr')
-      break
-  }
+  await import('@formatjs/intl-pluralrules/polyfill-force')
+  await import(`@formatjs/intl-pluralrules/locale-data/${unsupportedLocale}`)
 }
 ```

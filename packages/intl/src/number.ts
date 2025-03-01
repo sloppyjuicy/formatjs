@@ -1,14 +1,11 @@
-import {Formatters, IntlFormatters, CustomFormats, OnErrorFn} from './types'
-import {getNamedFormat, filterProps} from './utils'
-import {IntlError, IntlErrorCode} from './error'
 import {NumberFormatOptions} from '@formatjs/ecma402-abstract'
+import {IntlFormatError} from './error'
+import {CustomFormats, Formatters, IntlFormatters, OnErrorFn} from './types'
+import {filterProps, getNamedFormat} from './utils'
 
 const NUMBER_FORMAT_OPTIONS: Array<keyof NumberFormatOptions> = [
-  'localeMatcher',
-
   'style',
   'currency',
-  'currencyDisplay',
   'unit',
   'unitDisplay',
   'useGrouping',
@@ -28,6 +25,12 @@ const NUMBER_FORMAT_OPTIONS: Array<keyof NumberFormatOptions> = [
   'unit',
   'unitDisplay',
   'numberingSystem',
+
+  // ES2023 NumberFormat
+  'trailingZeroDisplay',
+  'roundingPriority',
+  'roundingIncrement',
+  'roundingMode',
 ]
 
 export function getFormatter(
@@ -48,7 +51,11 @@ export function getFormatter(
   const defaults = ((format &&
     getNamedFormat(formats!, 'number', format, onError)) ||
     {}) as NumberFormatOptions
-  const filteredOptions = filterProps(options, NUMBER_FORMAT_OPTIONS, defaults)
+  const filteredOptions = filterProps(
+    options,
+    NUMBER_FORMAT_OPTIONS,
+    defaults
+  ) as NumberFormatOptions
 
   return getNumberFormat(locale, filteredOptions)
 }
@@ -68,7 +75,7 @@ export function formatNumber(
     return getFormatter(config, getNumberFormat, options).format(value)
   } catch (e) {
     config.onError(
-      new IntlError(IntlErrorCode.FORMAT_ERROR, 'Error formatting number.', e)
+      new IntlFormatError('Error formatting number.', config.locale, e)
     )
   }
 
@@ -91,7 +98,7 @@ export function formatNumberToParts(
     )
   } catch (e) {
     config.onError(
-      new IntlError(IntlErrorCode.FORMAT_ERROR, 'Error formatting number.', e)
+      new IntlFormatError('Error formatting number.', config.locale, e)
     )
   }
 

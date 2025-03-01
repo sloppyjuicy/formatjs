@@ -1,11 +1,9 @@
 import {DisplayNames} from '..'
-import {shouldPolyfill} from '../should-polyfill'
-
-describe('before polyfill', function () {
-  it('should-polyfill should be true', function () {
-    // Node 14.9.0/browsers does have this bug
-    expect(shouldPolyfill()).toBe(true)
-  })
+import {_shouldPolyfillWithoutLocale, shouldPolyfill} from '../should-polyfill'
+import {describe, expect, it, test, beforeEach, afterEach} from 'vitest'
+test('should-polyfill should be true', function () {
+  // Node 14.9.0/browsers does have this bug
+  expect(_shouldPolyfillWithoutLocale()).toBeTruthy()
 })
 
 describe('after polyfill', function () {
@@ -18,6 +16,10 @@ describe('after polyfill', function () {
     ;(Intl as any).DisplayNames = NativeDisplayNames
   })
   it('should fix the bug', function () {
-    expect(shouldPolyfill()).toBe(false)
+    expect(_shouldPolyfillWithoutLocale()).toBeFalsy()
   })
+})
+
+test('GH #4267', function () {
+  expect(shouldPolyfill('fr')).toBe('fr')
 })

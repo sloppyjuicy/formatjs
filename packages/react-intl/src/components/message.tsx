@@ -4,19 +4,26 @@
  * See the accompanying LICENSE file for terms.
  */
 
+import type {
+  FormatXMLElementFn,
+  Options as IntlMessageFormatOptions,
+  PrimitiveType,
+} from 'intl-messageformat'
 import * as React from 'react'
-import type {Options as IntlMessageFormatOptions} from 'intl-messageformat'
 
 import {MessageDescriptor} from '@formatjs/intl'
-import useIntl from './useIntl'
 import {shallowEqual} from '../utils'
+import useIntl from './useIntl'
 
 export interface Props<
-  V extends Record<string, any> = Record<string, React.ReactNode>
+  V extends Record<string, any> = Record<
+    string,
+    React.ReactNode | PrimitiveType | FormatXMLElementFn<React.ReactNode>
+  >,
 > extends MessageDescriptor {
   values?: V
   tagName?: React.ElementType<any>
-  children?(nodes: React.ReactNodeArray): React.ReactElement | null
+  children?(nodes: React.ReactNode[]): React.ReactNode | null
   ignoreTag?: IntlMessageFormatOptions['ignoreTag']
 }
 
@@ -58,7 +65,10 @@ function FormattedMessage(props: Props) {
 }
 FormattedMessage.displayName = 'FormattedMessage'
 
-const MemoizedFormattedMessage = React.memo<Props>(FormattedMessage, areEqual)
+const MemoizedFormattedMessage: React.ComponentType<Props> = React.memo<Props>(
+  FormattedMessage,
+  areEqual
+)
 MemoizedFormattedMessage.displayName = 'MemoizedFormattedMessage'
 
 export default MemoizedFormattedMessage

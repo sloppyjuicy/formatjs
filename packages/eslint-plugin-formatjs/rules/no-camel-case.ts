@@ -1,41 +1,49 @@
-import {Rule} from 'eslint'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
 import {
-  parse,
-  isPluralElement,
   MessageFormatElement,
   isArgumentElement,
+  isPluralElement,
+  parse,
 } from '@formatjs/icu-messageformat-parser'
-import {extractMessages} from '../util'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
+
+type MessageIds = 'camelcase'
+
+export const name = 'no-camel-case'
 
 const CAMEL_CASE_REGEX = /[A-Z]/
 
-class CamelCase extends Error {
-  public message = 'Camel case arguments are not allowed'
-}
-
 function verifyAst(ast: MessageFormatElement[]) {
+  const errors: {messageId: MessageIds; data: Record<string, unknown>}[] = []
   for (const el of ast) {
     if (isArgumentElement(el)) {
       if (CAMEL_CASE_REGEX.test(el.value)) {
-        throw new CamelCase()
+        errors.push({messageId: 'camelcase', data: {}})
       }
       continue
     }
     if (isPluralElement(el)) {
       if (CAMEL_CASE_REGEX.test(el.value)) {
-        throw new CamelCase()
+        errors.push({messageId: 'camelcase', data: {}})
       }
       const {options} = el
       for (const selector of Object.keys(options)) {
-        verifyAst(options[selector].value)
+        errors.push(...verifyAst(options[selector].value))
       }
     }
   }
+
+  return errors
 }
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
-  const msgs = extractMessages(node, context.settings)
+function checkNode(
+  context: RuleContext<MessageIds, unknown[]>,
+  node: TSESTree.Node
+) {
+  const settings = getSettings(context)
+  const msgs = extractMessages(node, settings)
 
   for (const [
     {
@@ -46,38 +54,43 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!defaultMessage || !messageNode) {
       continue
     }
-    try {
-      verifyAst(
-        parse(defaultMessage, {
-          ignoreTag: context.settings.ignoreTag,
-        })
-      )
-    } catch (e) {
+    const errors = verifyAst(
+      parse(defaultMessage, {
+        ignoreTag: settings.ignoreTag,
+      })
+    )
+    for (const error of errors) {
       context.report({
-        node: messageNode as any,
-        message: e.message,
+        node: messageNode,
+        ...error,
       })
     }
   }
 }
 
-const rule: Rule.RuleModule = {
+export const rule: RuleModule<MessageIds> = {
   meta: {
     type: 'problem',
     docs: {
       description: 'Disallow camel case placeholders in message',
-      category: 'Errors',
-      recommended: false,
-      url: 'https://formatjs.io/docs/tooling/linter#no-camel-case',
+      url: 'https://formatjs.github.io/docs/tooling/linter#no-camel-case',
     },
     fixable: 'code',
+    schema: [],
+    messages: {
+      camelcase: 'Camel case arguments are not allowed',
+    },
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -92,5 +105,3 @@ const rule: Rule.RuleModule = {
     }
   },
 }
-
-export default rule

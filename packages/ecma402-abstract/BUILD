@@ -1,37 +1,29 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("//tools:index.bzl", "check_format", "generate_src_file", "package_json_test", "ts_compile")
-load("//tools:jest.bzl", "jest_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "generate_src_file", "package_json_test", "ts_compile")
+load("//tools:vitest.bzl", "vitest")
 
-exports_files(["package.json"])
+npm_link_all_packages()
 
 PACKAGE_NAME = "ecma402-abstract"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         ":dist",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = "@formatjs/%s" % PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob(
     [
         "**/*.ts",
-        "NumberFormat/*.json",
     ],
     exclude = [
         "scripts/*.ts",
@@ -40,63 +32,50 @@ SRCS = glob(
 )
 
 SRC_DEPS = [
-    "//packages/intl-localematcher:dist",
+    ":node_modules/@formatjs/intl-localematcher",
+    ":node_modules/@formatjs/fast-memoize",
+    "//:node_modules/decimal.js",
 ]
 
 ts_compile(
     name = "dist",
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     skip_esm = False,
     deps = SRC_DEPS,
 )
 
-jest_test(
-    name = "unit",
+vitest(
+    name = "unit_test",
     srcs = SRCS + glob([
         "tests/**/*.ts",
         "tests/**/*.tsx",
-        "tests/**/*.snap",
     ]),
-    deps = SRC_DEPS + [
-        "//packages/intl-localematcher:types",
-    ],
+    deps = SRC_DEPS,
 )
 
-generated_file_test(
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
 # digit-mapping
 generate_src_file(
     name = "digit-mapping",
     src = "NumberFormat/digit-mapping.generated.ts",
+    data = [
+        "//:node_modules/@types/json-stable-stringify",
+        "//:node_modules/json-stable-stringify",
+    ],
     entry_point = "scripts/digit-mapping.ts",
-)
-
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "**/*.generated.*",
-            "CHANGELOG.md",
-            "NumberFormat/digit-mapping.json",
-        ],
-    ),
 )
 
 generate_src_file(
     name = "regex",
     src = "regex.generated.ts",
     data = [
-        "scripts/global.ts",
-        "@npm//@unicode/unicode-13.0.0",
-        "@npm//regenerate",
+        "//:node_modules/@types/regenerate",
+        "//:node_modules/@unicode/unicode-13.0.0",
+        "//:node_modules/regenerate",
     ],
     entry_point = "scripts/regex-gen.ts",
 )
@@ -104,4 +83,9 @@ generate_src_file(
 package_json_test(
     name = "package_json_test",
     deps = SRC_DEPS,
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
 )

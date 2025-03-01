@@ -1,56 +1,54 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("//tools:index.bzl", "check_format", "package_json_test", "ts_compile")
-load("//tools:jest.bzl", "jest_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "package_json_test", "ts_compile_node")
+load("//tools:vitest.bzl", "vitest")
 
-exports_files(["package.json"])
+npm_link_all_packages()
 
 PACKAGE_NAME = "eslint-plugin-formatjs"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         ":dist",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob(["rules/*.ts"]) + [
     "index.ts",
     "util.ts",
+    "context-compat.ts",
+    "package.json",
 ]
 
 SRC_DEPS = [
-    "@npm//@types/eslint",
-    "@npm//@typescript-eslint/typescript-estree",
-    "@npm//emoji-regex",
-    "@npm//eslint",
-    "@npm//typescript",
-    "//packages/icu-messageformat-parser:dist",
-    "//packages/ts-transformer:dist",
+    ":node_modules/@formatjs/icu-messageformat-parser",
+    ":node_modules/@formatjs/ts-transformer",
+    ":node_modules/@types/picomatch",
+    ":node_modules/magic-string",
+    ":node_modules/picomatch",
+    ":node_modules/unicode-emoji-utils",
+    "//:node_modules/@types/eslint",
+    "//:node_modules/@types/node",
+    "//:node_modules/@typescript-eslint/utils",
+    "//:node_modules/eslint",
+    "//:node_modules/typescript",
 ]
 
-ts_compile(
+ts_compile_node(
     name = "dist",
-    package_name = PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     deps = SRC_DEPS,
 )
 
-TESTS_BASE_SRCS = SRCS + glob(
+TESTS_BASE_SRCS = [":srcs"] + glob(
     [
         "tests/*.ts",
     ],
@@ -61,36 +59,28 @@ TEST_FILES = glob([
     "tests/*.test.ts",
 ])
 
-[jest_test(
-    name = "unit-%s" % f[6:f.index(".test.ts")],
-    srcs = TESTS_BASE_SRCS + [f],
-    deps = [
-        "@npm//@typescript-eslint/parser",
-        "@npm//vue-eslint-parser",
-        "//packages/icu-messageformat-parser:types",
-        "//packages/ts-transformer:types",
-    ] + SRC_DEPS,
-) for f in TEST_FILES]
-
-generated_file_test(
-    name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
+vitest(
+    name = "unit_test",
+    srcs = TESTS_BASE_SRCS + TEST_FILES,
+    skip_typecheck = True,
+    deps = SRC_DEPS + [
+        "//:node_modules/@typescript-eslint/parser",
+        "//:node_modules/@typescript-eslint/rule-tester",
+        "//:node_modules/vue-eslint-parser",
+    ],
 )
 
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "CHANGELOG.md",
-        ],
-    ),
+write_source_files(
+    name = "tsconfig_json",
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
 package_json_test(
     name = "package_json_test",
     deps = SRC_DEPS,
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
 )

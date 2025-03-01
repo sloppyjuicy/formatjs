@@ -1,4 +1,4 @@
-import {NumberFormatOptions} from '@formatjs/ecma402-abstract'
+import type {NumberFormatOptions} from '@formatjs/ecma402-abstract'
 import {WHITE_SPACE_REGEX} from './regex.generated'
 
 export interface ExtendedNumberFormatOptions extends NumberFormatOptions {
@@ -44,12 +44,17 @@ function icuUnitToEcma(unit: string): ExtendedNumberFormatOptions['unit'] {
 }
 
 const FRACTION_PRECISION_REGEX = /^\.(?:(0+)(\*)?|(#+)|(0+)(#+))$/g
-const SIGNIFICANT_PRECISION_REGEX = /^(@+)?(\+|#+)?$/g
+const SIGNIFICANT_PRECISION_REGEX = /^(@+)?(\+|#+)?[rs]?$/g
 const INTEGER_WIDTH_REGEX = /(\*)(0+)|(#+)(0+)|(0+)/g
 const CONCISE_INTEGER_WIDTH_REGEX = /^(0+)$/
 
 function parseSignificantPrecision(str: string): ExtendedNumberFormatOptions {
   const result: ExtendedNumberFormatOptions = {}
+  if (str[str.length - 1] === 'r') {
+    result.roundingPriority = 'morePrecision'
+  } else if (str[str.length - 1] === 's') {
+    result.roundingPriority = 'lessPrecision'
+  }
   str.replace(
     SIGNIFICANT_PRECISION_REGEX,
     function (_: string, g1: string, g2: string | number) {
@@ -247,6 +252,27 @@ export function parseNumberSkeleton(
       case 'scale':
         result.scale = parseFloat(token.options[0])
         continue
+      case 'rounding-mode-floor':
+        result.roundingMode = 'floor'
+        continue
+      case 'rounding-mode-ceiling':
+        result.roundingMode = 'ceil'
+        continue
+      case 'rounding-mode-down':
+        result.roundingMode = 'trunc'
+        continue
+      case 'rounding-mode-up':
+        result.roundingMode = 'expand'
+        continue
+      case 'rounding-mode-half-even':
+        result.roundingMode = 'halfEven'
+        continue
+      case 'rounding-mode-half-down':
+        result.roundingMode = 'halfTrunc'
+        continue
+      case 'rounding-mode-half-up':
+        result.roundingMode = 'halfExpand'
+        continue
       // https://unicode-org.github.io/icu/userguide/format_parse/numbers/skeletons.html#integer-width
       case 'integer-width':
         if (token.options.length > 1) {
@@ -324,8 +350,12 @@ export function parseNumberSkeleton(
         }
       )
 
-      if (token.options.length) {
-        result = {...result, ...parseSignificantPrecision(token.options[0])}
+      const opt = token.options[0]
+      // https://unicode-org.github.io/icu/userguide/format_parse/numbers/skeletons.html#trailing-zero-display
+      if (opt === 'w') {
+        result = {...result, trailingZeroDisplay: 'stripIfInteger'}
+      } else if (opt) {
+        result = {...result, ...parseSignificantPrecision(opt)}
       }
       continue
     }

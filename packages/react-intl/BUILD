@@ -1,140 +1,113 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("//tools:index.bzl", "check_format", "esbuild", "package_json_test", "ts_compile")
-load("//tools:jest.bzl", "jest_test")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "package_json_test", "ts_compile")
+load("//tools:jest.bzl", "jest_test_v2")
 
-exports_files(["package.json"])
+npm_link_all_packages()
 
 PACKAGE_NAME = "react-intl"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         "%s.iife.js" % PACKAGE_NAME,
         ":dist",
         ":dist-esm",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob(["src/**/*.ts*"]) + ["index.ts"]
 
 SRC_DEPS = [
-    "@npm//@types/hoist-non-react-statics",
-    "@npm//@types/react",
-    "@npm//hoist-non-react-statics",
-    "@npm//react",
-    "//packages/ecma402-abstract:dist",
-    "//packages/icu-messageformat-parser:dist",
-    "//packages/intl-displaynames:dist",
-    "//packages/intl-listformat:dist",
-    "//packages/intl-messageformat:dist",
-    "//packages/intl:dist",
+    ":node_modules/@formatjs/ecma402-abstract",
+    ":node_modules/@formatjs/icu-messageformat-parser",
+    ":node_modules/@formatjs/intl",
+    ":node_modules/@types/hoist-non-react-statics",
+    ":node_modules/hoist-non-react-statics",
+    ":node_modules/intl-messageformat",
+    "//:node_modules/@types/react",
+    "//:node_modules/react",
 ]
 
-TESTS = glob([
-    "tests/unit/**/*.ts*",
-    "tests/unit/**/*.snap",
-])
+TESTS = glob(
+    [
+        "tests/unit/**/*.ts*",
+    ],
+    exclude = ["tests/unit/components/__snapshots__/*"],
+)
 
 TEST_DEPS = SRC_DEPS + [
-    "@npm//@testing-library/jest-dom",
-    "@npm//@testing-library/react",
-    "@npm//react-dom",
-    "//packages/ecma402-abstract:types",
-    "//packages/icu-messageformat-parser:types",
-    "//packages/intl-displaynames:types",
-    "//packages/intl-listformat:types",
-    "//packages/intl-messageformat:types",
-    "//packages/intl-numberformat:dist",
-    "//packages/intl-relativetimeformat:dist",
-    "//packages/intl:types",
+    "//:node_modules/@testing-library/jest-dom",
+    "//:node_modules/@testing-library/react",
+    "//:node_modules/@types/aria-query",
+    "//:node_modules/@types/node",
+    "//:node_modules/jest-environment-jsdom",
+    "//:node_modules/react-dom",
+    "//:node_modules/typescript",
 ]
 
 ts_compile(
     name = "dist",
-    package_name = PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     skip_esm = False,
     deps = SRC_DEPS,
 )
 
 esbuild(
     name = "%s.esbuild.iife" % PACKAGE_NAME,
-    args = [
-        "--global-name=ReactIntl",
-    ],
-    entry_point = "lib/index.js",
+    srcs = [":srcs"],
+    config = {
+        "globalName": "ReactIntl",
+    },
+    entry_point = "index.ts",
     external = ["react"],
-    target = "es5",
-    deps = [
-        ":dist-esm",
-    ] + SRC_DEPS,
+    target = "es6",
+    deps = SRC_DEPS,
 )
 
 genrule(
     name = "external-rename",
     srcs = [":%s.esbuild.iife.js" % PACKAGE_NAME],
     outs = ["%s.iife.js" % PACKAGE_NAME],
-    cmd = "cat $< | sed -E 's/require\\(\"react\"\\)/window.React/g' > $@",
+    cmd = "cat $< | sed -E 's/__require\\(\"react\"\\)/window.React/g' > $@",
 )
 
-jest_test(
-    name = "unit",
-    srcs = SRCS + TESTS + [
-        "tests/setup.js",
-        "//packages/intl-numberformat:locale-data",
-        "//packages/intl-displaynames:locale-data",
-    ],
+jest_test_v2(
+    name = "unit_test",
+    srcs = [
+        ":dist",
+        ":tests_setup",
+    ] + TESTS,
     jest_config = "jest.config.js",
+    snapshots = glob(["tests/unit/components/__snapshots__/*"]),
+    tsconfig = "tsconfig.jest.json",
     deps = TEST_DEPS,
 )
 
-jest_test(
-    name = "functional",
-    srcs = glob(["tests/functional/**/*.ts*"]) + [
-        "tests/setup.js",
-        "package.json",
-        "//packages/intl-numberformat:locale-data",
-        "//packages/intl-displaynames:locale-data",
-    ],
-    jest_config = "jest.config.js",
-    deps = TEST_DEPS + [":dist"],
-)
-
-generated_file_test(
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
-)
-
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "CHANGELOG.md",
-            "tests/unit/components/__snapshots__/*",
-        ],
-    ),
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
 package_json_test(
     name = "package_json_test",
     deps = SRC_DEPS,
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
+)
+
+copy_to_bin(
+    name = "tests_setup",
+    srcs = ["tests/setup.js"],
 )

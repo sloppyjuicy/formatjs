@@ -1,15 +1,20 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "es5",
     "lib": [
       "dom",
-      "esnext.intl",
-      "es2017.intl",
-      "es2018.intl",
-      "es2020.intl",
-      "ES2015"
+      "ES2015",
+      "ES2016",
+      "ES2017.Intl",
+      "ES2018.Intl",
+      "ES2019.Intl",
+      "ES2020.Intl",
+      "ES2021.intl",
+      "ES2021.String",
+      "ES2022.Intl",
+      "ESNext.Intl"
     ],
     "baseUrl": ".",
     "declaration": true,
@@ -21,38 +26,14 @@
     "preserveConstEnums": true,
     "allowSyntheticDefaultImports": true,
     "noFallthroughCasesInSwitch": true,
-    "declarationMap": true,
     "importHelpers": true,
-    "jsx": "react",
-    "typeRoots": [
-      // Stop TS from climbing up the tree to arbitrary node_modules, thus
-      // making build non-hermetic
-      "./node_modules/@types",
-      // This is for tests where working dir is formatjs/
-      "../npm/node_modules/@types"
-    ],
-    "paths": {
-      "@formatjs/*": [
-        // k8 is 64-bit GNU/Linux output location, darwin is macOS.
-        "bazel-out/k8-fastbuild/bin/packages/*",
-        "bazel-out/darwin-fastbuild/bin/packages/*"
-      ],
-      "intl-messageformat": [
-        "bazel-out/k8-fastbuild/bin/packages/intl-messageformat",
-        "bazel-out/darwin-fastbuild/bin/packages/intl-messageformat"
-      ],
-      "babel-plugin-formatjs": [
-        "bazel-out/k8-fastbuild/bin/packages/babel-plugin-formatjs",
-        "bazel-out/darwin-fastbuild/bin/packages/babel-plugin-formatjs"
-      ],
-      "eslint-plugin-formatjs": [
-        "bazel-out/k8-fastbuild/bin/packages/eslint-plugin-formatjs",
-        "bazel-out/darwin-fastbuild/bin/packages/eslint-plugin-formatjs"
-      ],
-      "react-intl": [
-        "bazel-out/k8-fastbuild/bin/packages/react-intl",
-        "bazel-out/darwin-fastbuild/bin/packages/react-intl"
-      ]
-    }
-  }
+    "isolatedDeclarations": true,
+    "jsx": "react"
+  },
+  "exclude": [
+    "packages/react-intl/example-sandboxes",
+    // Exclude any tsd tests because they can mess with normal
+    // type checking in editors.
+    "**/*.test-d.ts"
+  ]
 }

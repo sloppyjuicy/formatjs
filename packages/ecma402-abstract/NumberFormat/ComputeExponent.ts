@@ -1,8 +1,7 @@
-import {getMagnitude} from '../utils'
+import Decimal from 'decimal.js'
+import {NumberFormatInternal} from '../types/number'
 import {ComputeExponentForMagnitude} from './ComputeExponentForMagnitude'
 import {FormatNumericToString} from './FormatNumericToString'
-import {NumberFormatInternal} from '../types/number'
-
 /**
  * The abstract operation ComputeExponent computes an exponent (power of ten) by which to scale x
  * according to the number formatting settings. It handles cases such as 999 rounding up to 1000,
@@ -11,39 +10,29 @@ import {NumberFormatInternal} from '../types/number'
  * NOT IN SPEC: it returns [exponent, magnitude].
  */
 export function ComputeExponent(
-  numberFormat: Intl.NumberFormat,
-  x: number,
-  {
-    getInternalSlots,
-  }: {getInternalSlots(nf: Intl.NumberFormat): NumberFormatInternal}
+  internalSlots: NumberFormatInternal,
+  x: Decimal
 ): [number, number] {
-  if (x === 0) {
+  if (x.isZero()) {
     return [0, 0]
   }
-  if (x < 0) {
-    x = -x
+  if (x.isNegative()) {
+    x = x.negated()
   }
-  const magnitude = getMagnitude(x)
-  const exponent = ComputeExponentForMagnitude(numberFormat, magnitude, {
-    getInternalSlots,
-  })
+  const magnitude = x.log(10).floor()
+  const exponent = ComputeExponentForMagnitude(internalSlots, magnitude)
   // Preserve more precision by doing multiplication when exponent is negative.
-  x = exponent < 0 ? x * 10 ** -exponent : x / 10 ** exponent
-  const formatNumberResult = FormatNumericToString(
-    getInternalSlots(numberFormat),
-    x
-  )
-  if (formatNumberResult.roundedNumber === 0) {
-    return [exponent, magnitude]
+  x = x.times(Decimal.pow(10, -exponent))
+  const formatNumberResult = FormatNumericToString(internalSlots, x)
+  if (formatNumberResult.roundedNumber.isZero()) {
+    return [exponent, magnitude.toNumber()]
   }
-  const newMagnitude = getMagnitude(formatNumberResult.roundedNumber)
-  if (newMagnitude === magnitude - exponent) {
-    return [exponent, magnitude]
+  const newMagnitude = formatNumberResult.roundedNumber.log(10).floor()
+  if (newMagnitude.eq(magnitude.minus(exponent))) {
+    return [exponent, magnitude.toNumber()]
   }
   return [
-    ComputeExponentForMagnitude(numberFormat, magnitude + 1, {
-      getInternalSlots,
-    }),
-    magnitude + 1,
+    ComputeExponentForMagnitude(internalSlots, magnitude.plus(1)),
+    magnitude.plus(1).toNumber(),
   ]
 }

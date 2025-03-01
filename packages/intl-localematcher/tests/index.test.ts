@@ -1,4 +1,8 @@
 import {match} from '../'
+import {expect, test} from 'vitest'
+test('zh-HK', function () {
+  expect(match(['zh-HK'], ['zh', 'zh-HANT', 'en'], 'en')).toEqual('zh-HANT')
+})
 
 test('Intl.LocaleMatcher', function () {
   expect(match(['fr-XX', 'en'], ['fr', 'en'], 'en')).toEqual('fr')
@@ -235,4 +239,8 @@ test('empty requested', function () {
 
 test('extension', function () {
   expect(match(['fr-CA-x-foo'], ['zh-Hant-TW', 'fr', 'en'], 'en')).toEqual('fr')
+})
+
+test('GH #4267', function () {
+  expect(match(['fr'], ['br', 'fr'], 'en')).toEqual('fr')
 })

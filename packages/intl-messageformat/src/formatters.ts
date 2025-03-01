@@ -1,4 +1,6 @@
+import {NumberFormatOptions} from '@formatjs/ecma402-abstract'
 import {
+  ExtendedNumberFormatOptions,
   isArgumentElement,
   isDateElement,
   isDateTimeSkeleton,
@@ -8,34 +10,46 @@ import {
   isPluralElement,
   isPoundElement,
   isSelectElement,
+  isTagElement,
   isTimeElement,
   MessageFormatElement,
-  isTagElement,
-  ExtendedNumberFormatOptions,
 } from '@formatjs/icu-messageformat-parser'
 import {
-  MissingValueError,
-  InvalidValueError,
   ErrorCode,
   FormatError,
+  InvalidValueError,
   InvalidValueTypeError,
+  MissingValueError,
 } from './error'
 
+declare global {
+  namespace FormatjsIntl {
+    interface Message {}
+    interface IntlConfig {}
+    interface Formats {}
+  }
+}
+
+type Format<Source = string> = Source extends keyof FormatjsIntl.Formats
+  ? FormatjsIntl.Formats[Source]
+  : string
+
 export interface Formats {
-  number: Record<string, Intl.NumberFormatOptions>
-  date: Record<string, Intl.DateTimeFormatOptions>
-  time: Record<string, Intl.DateTimeFormatOptions>
+  number: Record<Format<'number'>, NumberFormatOptions>
+  date: Record<Format<'date'>, Intl.DateTimeFormatOptions>
+  time: Record<Format<'time'>, Intl.DateTimeFormatOptions>
 }
 
 export interface FormatterCache {
-  number: Record<string, Intl.NumberFormat>
+  number: Record<string, NumberFormatOptions>
   dateTime: Record<string, Intl.DateTimeFormat>
   pluralRules: Record<string, Intl.PluralRules>
 }
 
 export interface Formatters {
   getNumberFormat(
-    ...args: ConstructorParameters<typeof Intl.NumberFormat>
+    locals?: string | string[],
+    opts?: NumberFormatOptions
   ): Intl.NumberFormat
   getDateTimeFormat(
     ...args: ConstructorParameters<typeof Intl.DateTimeFormat>
@@ -163,8 +177,8 @@ export function formatToParts<T>(
         typeof el.style === 'string'
           ? formats.date[el.style]
           : isDateTimeSkeleton(el.style)
-          ? el.style.parsedOptions
-          : undefined
+            ? el.style.parsedOptions
+            : undefined
       result.push({
         type: PART_TYPE.literal,
         value: formatters
@@ -178,8 +192,8 @@ export function formatToParts<T>(
         typeof el.style === 'string'
           ? formats.time[el.style]
           : isDateTimeSkeleton(el.style)
-          ? el.style.parsedOptions
-          : undefined
+            ? el.style.parsedOptions
+            : formats.time.medium
       result.push({
         type: PART_TYPE.literal,
         value: formatters
@@ -193,8 +207,8 @@ export function formatToParts<T>(
         typeof el.style === 'string'
           ? formats.number[el.style]
           : isNumberSkeleton(el.style)
-          ? el.style.parsedOptions
-          : undefined
+            ? el.style.parsedOptions
+            : undefined
 
       if (style && (style as ExtendedNumberFormatOptions).scale) {
         value =
@@ -204,7 +218,7 @@ export function formatToParts<T>(
       result.push({
         type: PART_TYPE.literal,
         value: formatters
-          .getNumberFormat(locales, style as Intl.NumberFormatOptions)
+          .getNumberFormat(locales, style)
           .format(value as number),
       })
       continue
@@ -292,6 +306,6 @@ Try polyfilling it using "@formatjs/intl-pluralrules"
   return mergeLiteral(result)
 }
 
-export type FormatXMLElementFn<T, R = string | T | Array<string | T>> = (
+export type FormatXMLElementFn<T, R = string | T | (string | T)[]> = (
   parts: Array<string | T>
 ) => R

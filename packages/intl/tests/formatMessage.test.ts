@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
-import '@formatjs/intl-numberformat/polyfill'
-import '@formatjs/intl-numberformat/locale-data/en'
-import '@formatjs/intl-numberformat/locale-data/es'
-import IntlMessageFormat from 'intl-messageformat'
 import {parse} from '@formatjs/icu-messageformat-parser'
+import IntlMessageFormat from 'intl-messageformat'
 import {formatMessage as baseFormatMessage} from '../src/message'
 import {Formatters, IntlConfig, IntlFormatters} from '../src/types'
 
@@ -309,7 +306,7 @@ describe('format API', () => {
 
         expect((config.onError as jest.Mock).mock.calls.map(c => c[0].code))
           .toMatchInlineSnapshot(`
-          Array [
+          [
             "MISSING_TRANSLATION",
           ]
         `)
@@ -332,7 +329,7 @@ describe('format API', () => {
 
         expect((config.onError as jest.Mock).mock.calls.map(c => c[0].code))
           .toMatchInlineSnapshot(`
-          Array [
+          [
             "MISSING_TRANSLATION",
           ]
         `)
@@ -444,6 +441,20 @@ describe('format API', () => {
         expect(
           (config.onError as jest.Mock).mock.calls.map(c => c[0].code)
         ).toMatchSnapshot()
+      })
+
+      it('returns an empty string when `fallbackOnEmptyString` is false', () => {
+        config.fallbackOnEmptyString = false
+        const id = 'empty'
+
+        expect(formatMessage({id})).toBe('')
+      })
+
+      it('does not return an empty string when `fallbackOnEmptyString` is true', () => {
+        config.fallbackOnEmptyString = true
+        const id = 'empty'
+
+        expect(formatMessage({id})).toBe(id)
       })
 
       it('returns message `id` when message and `defaultMessage` are empty', () => {

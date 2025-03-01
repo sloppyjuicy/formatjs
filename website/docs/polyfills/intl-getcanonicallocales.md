@@ -38,13 +38,13 @@ yarn add @formatjs/intl-getcanonicallocales
 
 ## Usage
 
-### Via polyfill.io
+### Via polyfill-fastly.io
 
-You can use [polyfill.io URL Builder](https://polyfill.io/v3/url-builder/) to create a polyfill script tag for `Intl.GetCanonicalLocales`. For example:
+You can use [polyfill-fastly.io URL Builder](https://polyfill-fastly.io/) to create a polyfill script tag for `Intl.GetCanonicalLocales`. For example:
 
 ```html
 <!-- Polyfill Intl.GetCanonicalLocales & its dependencies -->
-<script src="https://polyfill.io/v3/polyfill.min.js?features=Intl.GetCanonicalLocales"></script>
+<script src="https://polyfill-fastly.io/v3/polyfill.min.js?features=Intl.GetCanonicalLocales"></script>
 ```
 
 ### Simple
@@ -62,6 +62,8 @@ async function polyfill() {
   if (shouldPolyfill()) {
     await import('@formatjs/intl-getcanonicallocales/polyfill')
   }
+  // Alternatively, force the polyfill regardless of support
+  await import('@formatjs/intl-getcanonicallocales/polyfill-force')
 }
 ```
 

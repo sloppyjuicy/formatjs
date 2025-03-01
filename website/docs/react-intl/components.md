@@ -32,7 +32,7 @@ interface IntlConfig {
   defaultLocale: string
   defaultFormats: CustomFormats
   timeZone?: string
-  textComponent?: React.ComponentType | keyof React.ReactHTML
+  textComponent?: React.ComponentType | keyof React.JSX.IntrinsicElements
   wrapRichTextChunksInFragment?: boolean
   defaultRichTextElements?: Record<string, FormatXMLElementFn<React.ReactNode>>
   onError(err: string): void
@@ -54,6 +54,10 @@ Provides a way to configure the default wrapper for React Intl's `<Formatted*>` 
 ### onError
 
 Allows the user to provide a custom error handler. By default, error messages are logged using `console.error` if `NODE_ENV` is not set to `production`.
+
+### onWarn
+
+Allows the user to provide a custom warning handler. By default, warning messages are logged using `console.warning` if `NODE_ENV` is not set to `production`.
 
 ### wrapRichTextChunksInFragment
 
@@ -124,18 +128,6 @@ const intl = createIntl({
 // Pass it to IntlProvider
 <RawIntlProvider value={intl}>{foo}</RawIntlProvider>
 ```
-
-#### Dynamic Language Selection
-
-By default, changes to the `locale` at runtime may not trigger a re-render of child elements. To solve this, and enable dynamic locale modification, add a `key` property to the `<IntlProvider>` and set it to the locale, which persuades React that the component has been modified:
-
-```tsx
-<IntlProvider locale={localeProp} key={localeProp} messages={messagesProp}>
-  <App />
-</IntlProvider>
-```
-
-(See [Issue #243](https://github.com/formatjs/formatjs/issues/243).)
 
 ## FormattedDate
 
@@ -577,7 +569,7 @@ props: MessageDescriptor &
 
 ### Message Syntax
 
-String/Message formatting is a paramount feature of React Intl and it builds on [ICU Message Formatting](https://unicode-org.github.io/icu/userguide/format_parse/messages) by using the [ICU Message Syntax](../core-concepts/icu-syntax.md). This message syntax allows for simple to complex messages to be defined, translated, and then formatted at runtime.
+String/Message formatting is a paramount feature of React Intl and it builds on [ICU Message Formatting](https://unicode-org.github.io/icu/userguide/format_parse/messages) by using the [ICU Message Syntax](../core-concepts/icu-syntax.mdx). This message syntax allows for simple to complex messages to be defined, translated, and then formatted at runtime.
 
 **Simple Message:**
 
@@ -595,7 +587,7 @@ Hello, {name}, you have {itemCount, plural,
 }.
 ```
 
-**See:** The [Message Syntax Guide](../core-concepts/icu-syntax.md).
+**See:** The [Message Syntax Guide](../core-concepts/icu-syntax.mdx).
 
 ### Message Descriptor
 

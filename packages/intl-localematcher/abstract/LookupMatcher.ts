@@ -1,6 +1,6 @@
-import {UNICODE_EXTENSION_SEQUENCE_REGEX} from './utils'
 import {BestAvailableLocale} from './BestAvailableLocale'
 import {LookupMatcherResult} from './types'
+import {UNICODE_EXTENSION_SEQUENCE_REGEX} from './utils'
 
 /**
  * https://tc39.es/ecma402/#sec-lookupmatcher
@@ -9,8 +9,8 @@ import {LookupMatcherResult} from './types'
  * @param getDefaultLocale
  */
 export function LookupMatcher(
-  availableLocales: Set<string>,
-  requestedLocales: string[],
+  availableLocales: readonly string[],
+  requestedLocales: readonly string[],
   getDefaultLocale: () => string
 ): LookupMatcherResult {
   const result: LookupMatcherResult = {locale: ''}
@@ -26,10 +26,7 @@ export function LookupMatcher(
     if (availableLocale) {
       result.locale = availableLocale
       if (locale !== noExtensionLocale) {
-        result.extension = locale.slice(
-          noExtensionLocale.length + 1,
-          locale.length
-        )
+        result.extension = locale.slice(noExtensionLocale.length, locale.length)
       }
       return result
     }

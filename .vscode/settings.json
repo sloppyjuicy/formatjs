@@ -11,7 +11,8 @@
     "**/.project": true,
     "**/.settings": true,
     "**/.factorypath": true,
-    "dist": true
+    "dist": true,
+    ".swc": true
   },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -39,9 +40,7 @@
     }
   ],
   "typescript.tsdk": "node_modules/typescript/lib",
-  "npm.packageManager": "yarn",
-  "prettier.packageManager": "yarn",
-  "eslint.packageManager": "yarn",
+  "npm.packageManager": "pnpm",
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[javascript]": {
@@ -49,5 +48,20 @@
   },
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[dockerfile]": {
+    "editor.defaultFormatter": "ms-azuretools.vscode-docker"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[starlark]": {
+    "editor.defaultFormatter": "BazelBuild.vscode-bazel"
+  },
+  "[ignore]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
   }
 }

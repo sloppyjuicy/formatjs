@@ -1,35 +1,32 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("//tools:index.bzl", "check_format", "package_json_test", "ts_compile")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:index.bzl", "package_json_test", "ts_compile")
 
-exports_files(["package.json"])
+npm_link_all_packages()
+
+exports_files([
+    "package.json",
+    "tsconfig.json",
+])
 
 PACKAGE_NAME = "fast-memoize"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         ":dist",
         ":dist-esm",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = "@formatjs/%s" % PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob([
-    "src/*.ts",
     "*.ts",
 ])
 
@@ -38,32 +35,22 @@ SRC_DEPS = [
 
 ts_compile(
     name = "dist",
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     skip_esm = False,
     deps = SRC_DEPS,
 )
 
-generated_file_test(
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
-)
-
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "CHANGELOG.md",
-            "tests/__snapshots__/*",
-        ],
-    ),
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
 package_json_test(
     name = "package_json_test",
     deps = SRC_DEPS,
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
 )

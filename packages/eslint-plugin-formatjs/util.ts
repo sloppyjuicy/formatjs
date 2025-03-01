@@ -1,12 +1,14 @@
-import {TSESTree} from '@typescript-eslint/typescript-estree'
+import {MessageFormatElement} from '@formatjs/icu-messageformat-parser'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext} from '@typescript-eslint/utils/ts-eslint'
 
 export interface MessageDescriptor {
   id?: string
   defaultMessage?: string
-  description?: string
+  description?: string | object
 }
 
-const FORMAT_FUNCTION_NAMES = new Set(['$formatMessage', 'formatMessage'])
+const FORMAT_FUNCTION_NAMES = new Set(['$formatMessage', 'formatMessage', '$t'])
 const COMPONENT_NAMES = new Set(['FormattedMessage'])
 const DECLARATION_FUNCTION_NAMES = new Set(['defineMessage'])
 
@@ -23,6 +25,13 @@ export interface MessageDescriptorNodeInfo {
   descriptionNode?: TSESTree.Property['value'] | TSESTree.JSXAttribute['value']
   idValueNode?: TSESTree.Property['value'] | TSESTree.JSXAttribute['value']
   idPropNode?: TSESTree.Property | TSESTree.JSXAttribute
+}
+
+export function getSettings<
+  TMessageIds extends string,
+  TOptions extends readonly unknown[],
+>({settings}: RuleContext<TMessageIds, TOptions>): Settings {
+  return settings.formatjs ?? settings
 }
 
 function isStringLiteral(node: TSESTree.Node): node is TSESTree.StringLiteral {
@@ -53,14 +62,20 @@ function staticallyEvaluateStringConcat(
   return ['', false]
 }
 
-function isIntlFormatMessageCall(node: TSESTree.Node) {
+export function isIntlFormatMessageCall(
+  node: TSESTree.Node
+): node is TSESTree.CallExpression {
   return (
     node.type === 'CallExpression' &&
     node.callee.type === 'MemberExpression' &&
-    node.callee.object.type === 'Identifier' &&
-    node.callee.object.name === 'intl' &&
+    ((node.callee.object.type === 'Identifier' &&
+      node.callee.object.name === 'intl') ||
+      (node.callee.object.type === 'MemberExpression' &&
+        node.callee.object.property.type === 'Identifier' &&
+        node.callee.object.property.name === 'intl')) &&
     node.callee.property.type === 'Identifier' &&
-    node.callee.property.name === 'formatMessage' &&
+    (node.callee.property.name === 'formatMessage' ||
+      node.callee.property.name === '$t') &&
     node.arguments.length >= 1 &&
     node.arguments[0].type === 'ObjectExpression'
   )
@@ -85,7 +100,7 @@ function isMultipleMessageDescriptorDeclaration(node: TSESTree.Node) {
   )
 }
 
-function extractMessageDescriptor(
+export function extractMessageDescriptor(
   node?: TSESTree.Expression
 ): MessageDescriptorNodeInfo | undefined {
   if (!node || node.type !== 'ObjectExpression') {
@@ -152,7 +167,12 @@ function extractMessageDescriptorFromJSXElement(
     idValueNode: undefined,
     idPropNode: undefined,
   }
+  let hasSpreadAttribute = false
   for (const prop of node.attributes) {
+    // We can't analyze spread attr
+    if (prop.type === 'JSXSpreadAttribute') {
+      hasSpreadAttribute = true
+    }
     if (prop.type !== 'JSXAttribute' || prop.name.type !== 'JSXIdentifier') {
       continue
     }
@@ -209,7 +229,8 @@ function extractMessageDescriptorFromJSXElement(
   if (
     !result.messagePropNode &&
     !result.descriptionNode &&
-    !result.idPropNode
+    !result.idPropNode &&
+    hasSpreadAttribute
   ) {
     return
   }
@@ -293,4 +314,39 @@ export function extractMessages(
     }
   }
   return []
+}
+
+/**
+ * Apply changes to the ICU message in code. The return value can be used in
+ * `fixer.replaceText(messageNode, <return value>)`. If the return value is null,
+ * it means that the patch cannot be applied.
+ */
+export function patchMessage(
+  messageNode: TSESTree.Node,
+  ast: MessageFormatElement[],
+  patcher: (messageContent: string, ast: MessageFormatElement[]) => string
+): string | null {
+  if (
+    messageNode.type === 'Literal' &&
+    messageNode.value &&
+    typeof messageNode.value === 'string'
+  ) {
+    return (
+      '"' + patcher(messageNode.value as string, ast).replace('"', '\\"') + '"'
+    )
+  } else if (
+    messageNode.type === 'TemplateLiteral' &&
+    messageNode.quasis.length === 1 &&
+    messageNode.expressions.length === 0
+  ) {
+    return (
+      '`' +
+      patcher(messageNode.quasis[0].value.cooked, ast)
+        .replace(/\\/g, '\\\\')
+        .replace(/`/g, '\\`') +
+      '`'
+    )
+  }
+
+  return null
 }

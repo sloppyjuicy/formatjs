@@ -1,13 +1,12 @@
-import * as React from 'react'
 import {
   FormatDateOptions,
-  FormatNumberOptions,
-  FormatListOptions,
   FormatDisplayNameOptions,
+  FormatListOptions,
+  FormatNumberOptions,
 } from '@formatjs/intl'
+import * as React from 'react'
 import {IntlShape} from '../types'
 import useIntl from './useIntl'
-import {Part} from '@formatjs/intl-listformat'
 
 enum DisplayName {
   formatDate = 'FormattedDate',
@@ -51,7 +50,9 @@ export const FormattedListParts: React.FC<
   Formatter['formatList'] & {
     value: Parameters<IntlShape['formatList']>[0]
 
-    children(val: Part[]): React.ReactElement | null
+    children(
+      val: ReturnType<Intl.ListFormat['formatToParts']>
+    ): React.ReactElement | null
   }
 > = props => {
   const intl = useIntl()
@@ -61,7 +62,7 @@ export const FormattedListParts: React.FC<
 FormattedNumberParts.displayName = 'FormattedNumberParts'
 
 export function createFormattedDateTimePartsComponent<
-  Name extends 'formatDate' | 'formatTime'
+  Name extends 'formatDate' | 'formatTime',
 >(
   name: Name
 ): React.FC<
@@ -109,7 +110,7 @@ export function createFormattedComponent<Name extends keyof Formatter>(
     const intl = useIntl()
     const {value, children, ...formatProps} = props
     // TODO: fix TS type definition for localeMatcher upstream
-    const formattedValue = intl[name](value as any, formatProps as any)
+    const formattedValue = intl[name](value as never, formatProps as any)
 
     if (typeof children === 'function') {
       return children(formattedValue as any)

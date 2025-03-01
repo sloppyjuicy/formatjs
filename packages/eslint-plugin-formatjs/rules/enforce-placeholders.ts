@@ -1,78 +1,54 @@
-import {Rule} from 'eslint'
-import {TSESTree} from '@typescript-eslint/typescript-estree'
-import {extractMessages} from '../util'
 import {
-  parse,
-  isPluralElement,
   MessageFormatElement,
-  isLiteralElement,
-  isSelectElement,
-  isPoundElement,
+  TYPE,
+  parse,
 } from '@formatjs/icu-messageformat-parser'
+import {TSESTree} from '@typescript-eslint/utils'
+import {RuleContext, RuleModule} from '@typescript-eslint/utils/ts-eslint'
+import {getParserServices} from '../context-compat'
+import {extractMessages, getSettings} from '../util'
 
-class PlaceholderEnforcement extends Error {
-  public message: string
-  constructor(message: string) {
-    super()
-    this.message = message
-  }
-}
+type MessageIds = 'parserError' | 'missingValue' | 'unusedValue'
+type Options = [{ignoreList: string[]}?]
 
-function keyExistsInExpression(
-  key: string,
-  values: TSESTree.Expression | undefined
-) {
-  if (!values) {
-    return false
-  }
-  if (values.type !== 'ObjectExpression') {
-    return true // True bc we cannot evaluate this
-  }
-  if (values.properties.find(prop => prop.type === 'SpreadElement')) {
-    return true // True bc there's a spread element
-  }
-  return !!values.properties.find(prop => {
-    if (prop.type !== 'Property') {
-      return false
-    }
-    switch (prop.key.type) {
-      case 'Identifier':
-        return prop.key.name === key
-      case 'Literal':
-        return prop.key.value === key
-    }
-    return false
-  })
-}
+function collectPlaceholderNames(ast: MessageFormatElement[]): Set<string> {
+  const placeholderNames = new Set<string>()
+  _traverse(ast)
+  return placeholderNames
 
-function verifyAst(
-  ast: MessageFormatElement[],
-  values: TSESTree.Expression | undefined,
-  ignoreList: Set<string>
-) {
-  for (const el of ast) {
-    if (isLiteralElement(el) || isPoundElement(el)) {
-      continue
-    }
-    const key = el.value
-    if (!ignoreList.has(key) && !keyExistsInExpression(key, values)) {
-      throw new PlaceholderEnforcement(
-        `Missing value for placeholder "${el.value}"`
-      )
-    }
-
-    if (isPluralElement(el) || isSelectElement(el)) {
-      for (const selector of Object.keys(el.options)) {
-        verifyAst(el.options[selector].value, values, ignoreList)
+  function _traverse(ast: MessageFormatElement[]) {
+    for (const element of ast) {
+      switch (element.type) {
+        case TYPE.literal:
+        case TYPE.pound:
+          break
+        case TYPE.tag:
+          placeholderNames.add(element.value)
+          _traverse(element.children)
+          break
+        case TYPE.plural:
+        case TYPE.select:
+          placeholderNames.add(element.value)
+          for (const {value} of Object.values(element.options)) {
+            _traverse(value)
+          }
+          break
+        default:
+          placeholderNames.add(element.value)
+          break
       }
     }
   }
 }
 
-function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
+function checkNode(
+  context: RuleContext<MessageIds, Options>,
+  node: TSESTree.Node
+) {
+  const settings = getSettings(context)
   const msgs = extractMessages(node, {
     excludeMessageDeclCalls: true,
-    ...context.settings,
+    ...settings,
   })
   const {
     options: [opt],
@@ -88,34 +64,87 @@ function checkNode(context: Rule.RuleContext, node: TSESTree.Node) {
     if (!defaultMessage || !messageNode) {
       continue
     }
+
+    if (values && values.type !== 'ObjectExpression') {
+      // cannot evaluate this
+      continue
+    }
+
+    if (values?.properties.find(prop => prop.type === 'SpreadElement')) {
+      // cannot evaluate the spread element
+      continue
+    }
+
+    const literalElementByLiteralKey = new Map<
+      string,
+      TSESTree.ObjectLiteralElement
+    >()
+
+    if (values) {
+      for (const prop of values.properties) {
+        if (prop.type === 'Property' && !prop.computed) {
+          const name =
+            prop.key.type === 'Identifier'
+              ? prop.key.name
+              : String(prop.key.value)
+          literalElementByLiteralKey.set(name, prop)
+        }
+      }
+    }
+
+    let ast: MessageFormatElement[]
+
     try {
-      verifyAst(
-        parse(defaultMessage, {
-          ignoreTag: context.settings.ignoreTag,
-        }),
-        values,
-        ignoreList
-      )
+      ast = parse(defaultMessage, {ignoreTag: settings.ignoreTag})
     } catch (e) {
       context.report({
-        node: messageNode as any,
-        message: e.message,
+        node: messageNode,
+        messageId: 'parserError',
+        data: {message: e instanceof Error ? e.message : String(e)},
+      })
+      continue
+    }
+
+    const placeholderNames = collectPlaceholderNames(ast)
+
+    const missingPlaceholders: string[] = []
+    placeholderNames.forEach(name => {
+      if (!ignoreList.has(name) && !literalElementByLiteralKey.has(name)) {
+        missingPlaceholders.push(name)
+      }
+    })
+
+    if (missingPlaceholders.length > 0) {
+      context.report({
+        node: messageNode,
+        messageId: 'missingValue',
+        data: {
+          list: missingPlaceholders.join(', '),
+        },
       })
     }
+
+    literalElementByLiteralKey.forEach((element, key) => {
+      if (!ignoreList.has(key) && !placeholderNames.has(key)) {
+        context.report({
+          node: element,
+          messageId: 'unusedValue',
+        })
+      }
+    })
   }
 }
 
-const rule: Rule.RuleModule = {
+export const name = 'enforce-placeholders'
+
+export const rule: RuleModule<MessageIds, Options> = {
   meta: {
     type: 'problem',
     docs: {
       description:
         'Enforce that all messages with placeholders have enough passed-in values',
-      category: 'Errors',
-      recommended: true,
-      url: 'https://formatjs.io/docs/tooling/linter#enforce-placeholders',
+      url: 'https://formatjs.github.io/docs/tooling/linter#enforce-placeholders',
     },
-    fixable: 'code',
     schema: [
       {
         type: 'object',
@@ -130,13 +159,23 @@ const rule: Rule.RuleModule = {
         additionalProperties: false,
       },
     ],
+    messages: {
+      parserError: '{{message}}',
+      missingValue:
+        'Missing value(s) for the following placeholder(s): {{list}}.',
+      unusedValue: 'Value not used by the message.',
+    },
   },
+  defaultOptions: [],
   create(context) {
     const callExpressionVisitor = (node: TSESTree.Node) =>
       checkNode(context, node)
 
-    if (context.parserServices.defineTemplateBodyVisitor) {
-      return context.parserServices.defineTemplateBodyVisitor(
+    const parserServices = getParserServices(context)
+    //@ts-expect-error defineTemplateBodyVisitor exists in Vue parser
+    if (parserServices?.defineTemplateBodyVisitor) {
+      //@ts-expect-error
+      return parserServices.defineTemplateBodyVisitor(
         {
           CallExpression: callExpressionVisitor,
         },
@@ -151,5 +190,3 @@ const rule: Rule.RuleModule = {
     }
   },
 }
-
-export default rule

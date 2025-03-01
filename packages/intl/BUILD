@@ -1,44 +1,36 @@
-load("@build_bazel_rules_nodejs//:index.bzl", "generated_file_test", "pkg_npm")
-load("//tools:index.bzl", "check_format", "package_json_test", "ts_compile")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//:tsd/package_json.bzl", tsd_bin = "bin")
+load("//tools:index.bzl", "package_json_test", "ts_compile")
 load("//tools:jest.bzl", "jest_test")
 
-exports_files(["package.json"])
+npm_link_all_packages()
 
 PACKAGE_NAME = "intl"
 
-pkg_npm(
-    name = PACKAGE_NAME,
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
+npm_package(
+    name = "pkg",
     srcs = [
         "LICENSE.md",
         "README.md",
-    ],
-    deps = [
+        "package.json",
         ":dist",
         ":dist-esm",
     ],
-)
-
-alias(
-    name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
-)
-
-alias(
-    name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    package = "@formatjs/%s" % PACKAGE_NAME,
+    visibility = ["//visibility:public"],
 )
 
 SRCS = glob(["src/**/*.ts*"]) + ["index.ts"]
 
 SRC_DEPS = [
-    "@npm//@types/node",
-    "//packages/ecma402-abstract:dist",
-    "//packages/fast-memoize:dist",
-    "//packages/icu-messageformat-parser:dist",
-    "//packages/intl-displaynames:dist",
-    "//packages/intl-listformat:dist",
-    "//packages/intl-messageformat:dist",
+    ":node_modules/@formatjs/ecma402-abstract",
+    ":node_modules/@formatjs/fast-memoize",
+    ":node_modules/@formatjs/icu-messageformat-parser",
+    ":node_modules/intl-messageformat",
 ]
 
 TESTS = glob([
@@ -48,54 +40,62 @@ TESTS = glob([
 
 ts_compile(
     name = "dist",
-    package_name = "@formatjs/%s" % PACKAGE_NAME,
-    srcs = SRCS,
+    srcs = [":srcs"],
     skip_esm = False,
     deps = SRC_DEPS,
 )
 
 jest_test(
-    name = "unit",
-    srcs = SRCS + TESTS + [
-        "//packages/intl-datetimeformat:add-all-tz",
-        "//packages/intl-datetimeformat:locale-data",
-        "//packages/intl-displaynames:locale-data",
-        "//packages/intl-numberformat:locale-data",
-    ],
-    deps = SRC_DEPS + [
-        "//packages/ecma402-abstract:types",
-        "//packages/intl-datetimeformat:dist",
-        "//packages/intl-datetimeformat:types",
-        "//packages/intl-displaynames:types",
-        "//packages/fast-memoize:types",
-        "//packages/intl-listformat:types",
-        "//packages/icu-messageformat-parser:types",
-        "//packages/intl-messageformat:types",
-        "//packages/intl-numberformat:dist",
-        "//packages/intl-numberformat:types",
+    name = "unit_test",
+    data = [":srcs"] + TESTS + SRC_DEPS + [
+        "//:node_modules/@types/node",
     ],
 )
 
-generated_file_test(
+write_source_files(
     name = "tsconfig_json",
-    src = "tsconfig.json",
-    generated = "//tools:tsconfig.golden.json",
-)
-
-check_format(
-    name = "prettier",
-    srcs = glob(
-        [
-            "**/*",
-        ],
-        exclude = [
-            "CHANGELOG.md",
-            "tests/__snapshots__/*",
-        ],
-    ),
+    files = {"tsconfig.json": "//tools:tsconfig.golden.json"},
 )
 
 package_json_test(
     name = "package_json_test",
     deps = SRC_DEPS,
+)
+
+# TODO: make this a macro that paramtrizes on `.test-d.ts` files.
+copy_to_directory(
+    name = "global_type_overrides_test_files",
+    srcs = [
+        "tests/global_type_overrides.test-d.ts",
+        "tsconfig.json",
+        ":pkg",
+    ],
+    out = "global_type_overrides_test_files",
+    # Remove the prefix so the package directory merges with the test file directory.
+    replace_prefixes = dict([
+        (
+            "pkg",
+            "",
+        ),
+    ]),
+)
+
+tsd_bin.tsd_test(
+    name = "global_type_overrides_test",
+    size = "small",
+    args = [
+        "--files",
+        "tests/global_type_overrides.test-d.ts",
+    ],
+    chdir = "packages/%s/global_type_overrides_test_files" % PACKAGE_NAME,
+    data = [
+        "tsconfig.json",
+        ":global_type_overrides_test_files",
+        "//:node_modules/tsd",
+    ] + SRC_DEPS,
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = SRCS,
 )

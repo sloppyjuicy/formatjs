@@ -35,13 +35,20 @@ yarn add -D eslint-plugin-formatjs
 
 Then in your eslint config:
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/no-offset": "error"
-  }
-}
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  // other configs...
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/no-offset': 'error',
+    },
+  },
+]
 ```
 
 ### React
@@ -96,19 +103,40 @@ This will check against `intl.formatMessage`, `$formatMessage` function calls in
 
 These settings are applied globally to all formatjs rules once specified. See [Shared Settings](https://eslint.org/docs/user-guide/configuring/configuration-files#adding-shared-settings) for more details on how to set them.
 
-### `additionalFunctionNames`
+### `formatjs.additionalFunctionNames`
 
 Similar to [babel-plugin-formatjs](./babel-plugin.md#additionalfunctionnames) & [@formatjs/ts-transformer](./ts-transformer.md#additionalfunctionnames), this allows you to specify additional function names to check besides `formatMessage` & `$formatMessage`.
 
-### `additionalComponentNames`
+### `formatjs.additionalComponentNames`
 
 Similar to [babel-plugin-formatjs](./babel-plugin.md#additionalcomponentnames) & [@formatjs/ts-transformer](./ts-transformer.md#additionalcomponentnames), this allows you to specify additional component names to check besides `FormattedMessage`.
 
+## Shareable Configs
+
+The plugin provides the following two shareable configs:
+
+1. `recommended`
+1. `strict`
+
+By using these, you can simplify your configuration while still using a set of rules that aligns with your
+quality standards.
+
+### Example
+
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  formatjs.configs.recommended,
+  // Other configs...
+]
+```
+
 ## Available Rules
 
-### `blacklist-elements`
+### `blocklist-elements`
 
-This blacklists usage of specific elements in ICU message.
+This blocklists usage of specific elements in ICU message.
 
 #### Why
 
@@ -139,13 +167,19 @@ enum Element {
 
 #### Example
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/blacklist-elements": [2, ["selectordinal"]]
-  }
-}
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/blocklist-elements': [2, ['selectordinal']],
+    },
+  },
+]
 ```
 
 ### `enforce-description`
@@ -174,13 +208,19 @@ const messages = defineMessages({
 
 #### Options
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/enforce-description": ["error", "literal"]
-  }
-}
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/enforce-description': ['error', 'literal'],
+    },
+  },
+]
 ```
 
 Setting `literal` forces `description` to always be a string literal instead of function calls or variables. This is helpful for extraction tools that expects `description` to always be a literal
@@ -211,13 +251,19 @@ const messages = defineMessages({
 
 #### Options
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/enforce-default-message": ["error", "literal"]
-  }
-}
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/enforce-default-message': ['error', 'literal'],
+    },
+  },
+]
 ```
 
 Setting `literal` forces `defaultMessage` to always be a string literal instead of function calls or variables. This is helpful for extraction tools that expects `defaultMessage` to always be a literal
@@ -273,18 +319,24 @@ intl.formatMessage({
 
 #### Options
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/enforce-placeholders": [
-      "error",
-      {
-        "ignoreList": ["foo"]
-      }
-    ]
-  }
-}
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/enforce-placeholders': [
+        'error',
+        {
+          ignoreList: ['foo'],
+        },
+      ],
+    },
+  },
+]
 ```
 
 - `ignoreList`: List of placeholder names to ignore. This works with `defaultRichTextElements` in `react-intl` so we don't provide false positive for ambient global tag formatting
@@ -313,20 +365,26 @@ enum LDML {
 
 #### Example
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/enforce-plural-rules": [
-      2,
-      {
-        "one": true,
-        "other": true,
-        "zero": false
-      }
-    ]
-  }
-}
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/enforce-plural-rules': [
+        2,
+        {
+          one: true,
+          other: true,
+          zero: false,
+        },
+      ],
+    },
+  },
+]
 ```
 
 ### `no-camel-case`
@@ -352,9 +410,42 @@ const messages = defineMessages({
 })
 ```
 
+### `no-missing-icu-plural-one-placeholders`
+
+Messages that look like `{thing, plural, one {1 thing} other {# things}}` will need to be changed to `{thing, plural, one {# thing} other {# things}}`
+
+#### Why
+
+- one is a category for any number that behaves like 1. So in some languages, for example Ukrainian, Russian and Polish, one → numbers that end in 1 (like 1, 21, 151) but that don’t end in 11 (like 11, 111, 10311). [More info](https://formatjs.github.io/docs/core-concepts/icu-syntax/#plural-format)
+
 ### `no-emoji`
 
-This prevents usage of emoji in message.
+This prevents usage of emojis (or above a certain Unicode version) in message
+
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/no-emoji': ['error'],
+    },
+  },
+
+  // OR
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/no-emoji': ['error', {versionAbove: '12.0'}],
+    },
+  },
+]
+```
 
 #### Why
 
@@ -369,11 +460,116 @@ const messages = defineMessages({
   foo: {
     defaultMessage: 'Smileys & People',
   },
+  // WORKS with option {versionAbove: '12.0'}
+  foo_bar: {
+    defaultMessage: '😃 Smileys & People',
+  },
   // FAILS
   bar: {
     defaultMessage: '😃 Smileys & People',
   },
+  // FAILS with option {versionAbove: '12.0'}
+  bar_foo: {
+    defaultMessage: '🥹 Smileys & People',
+  },
 })
+```
+
+### `no-literal-string-in-jsx`
+
+This prevents untranslated strings in JSX.
+
+#### Why
+
+- It is easy to forget wrapping JSX text in translation functions or components.
+- It is easy to forget wrapping certain accessibility attributes (e.g. `aria-label`) in translation functions.
+
+```tsx
+// WORKS
+<Button>
+  <FormattedMessage defaultMessage="Submit" />
+</Button>
+// WORKS
+<Button>
+  {customTranslateFn("Submit")}
+</Button>
+// WORKS
+<input aria-label={intl.formatMessage({defaultMessage: "Label"})} />
+// WORKS
+<img
+  src="/example.png"
+  alt={intl.formatMessage({defaultMessage: "Image description"})}
+/>
+// FAILS
+<Button>Submit</Button>
+// FAILS
+<Button>{'Submit'}</Button>
+// FAILS
+<Button>{`Te` + 's' + t}</Button>
+// FAILS
+<input aria-label="Untranslated label" />
+// FAILS
+<img src="/example.png" alt="Image description" />
+// FAILS
+<input aria-label={`Untranslated label`} />
+```
+
+This linter reports text literals or string expressions, including string
+concatenation expressions in the JSX children. It also checks certain JSX
+attributes that you can customize.
+
+#### Example
+
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/no-literal-string-in-jsx': [
+        2,
+        {
+          // Include or exclude additional prop checks (merged with the default checks)
+          props: {
+            include: [
+              // picomatch style glob pattern for tag name and prop name.
+              // check `name` prop of `UI.Button` tag.
+              ['UI.Button', 'name'],
+              // check `message` of any component.
+              ['*', 'message'],
+            ],
+            // Exclude will always override include.
+            exclude: [
+              // do not check `message` of the `Foo` tag.
+              ['Foo', 'message'],
+              // do not check aria-label and aria-description of `Bar` tag.
+              ['Bar', 'aria-{label,description}'],
+            ],
+          },
+        },
+      ],
+    },
+  },
+]
+```
+
+The default prop checks are:
+
+```js
+{
+  include: [
+    // check aria attributes that the screen reader announces.
+    ['*', 'aria-{label,description,details,errormessage}'],
+    // check placeholder and title attribute of all native DOM elements.
+    ['[a-z]*([a-z0-9])', '(placeholder|title)'],
+    // check alt attribute of the img tag.
+    ['img', 'alt'],
+  ],
+  exclude: []
+}
 ```
 
 ### `no-multiple-whitespaces`
@@ -487,21 +683,47 @@ const messages = defineMessages({
 
 #### Options
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/enforce-id": [
-      "error",
-      {
-        "idInterpolationPattern": "[sha512:contenthash:base64:6]"
-      }
-    ]
-  }
-}
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/enforce-id': [
+        'error',
+        {
+          idInterpolationPattern: '[sha512:contenthash:base64:6]',
+        },
+      ],
+    },
+  },
+]
 ```
 
 - `idInterpolationPattern`: Pattern to verify ID against
+- `idWhitelist`: An array of strings with regular expressions. This array allows allowlist custom ids for messages. For example '`\\.`' allows any id which has dot; `'^payment_.*'` - allows any custom id which has prefix `payment_`. Be aware that any backslash \ provided via string must be escaped with an additional backslash.
+
+### `no-invalid-icu`
+
+This bans strings inside `defaultMessage` that are syntactically invalid.
+
+#### Why
+
+It's easy to miss strings that look correct to you as a developer but which are actually syntactically invalid ICU strings. For instance, the following would cause an eslint error:
+
+```typescript
+formatMessage(
+  {
+    defaultMessage: '{count, plural one {#} other {# more}}', //Missing a comma!
+  },
+  {
+    count: 1,
+  }
+)
+```
 
 ### `no-id`
 
@@ -509,7 +731,7 @@ This bans explicit ID in `MessageDescriptor`.
 
 #### Why
 
-We generally encourage automatic ID generation due to [these reasons](https://formatjs.io/docs/getting-started/message-declaration). This makes sure no explicit IDs are set.
+We generally encourage automatic ID generation due to [these reasons](https://formatjs.github.io/docs/getting-started/message-declaration). This makes sure no explicit IDs are set.
 
 ### `no-complex-selectors`
 
@@ -525,16 +747,108 @@ Default complexity limit is 20 (using [Smartling as a reference](https://help.sm
 
 #### Options
 
-```json
-{
-  "plugins": ["formatjs"],
-  "rules": {
-    "formatjs/no-complex-selectors": [
-      "error",
-      {
-        "limit": 3
-      }
-    ]
+```js
+import formatjs from 'eslint-plugin-formatjs'
+
+export default [
+  {
+    plugins: {
+      formatjs,
+    },
+    rules: {
+      'formatjs/no-complex-selectors': [
+        'error',
+        {
+          limit: 3,
+        },
+      ],
+    },
+  },
+]
+```
+
+### `no-useless-message`
+
+This bans messages that do not require translation.
+
+#### Why
+
+Messages like `{test}` is not actionable by translators. The code should just directly reference `test`.
+
+### `prefer-formatted-message`
+
+Use `<FormattedMessage>` instead of the imperative `intl.formatMessage(...)` if applicable.
+
+```tsx
+// Bad
+<p>
+  {intl.formatMessage({defaultMessage: 'hello'})}
+</p>
+
+// Good
+<p>
+  <FormattedMessage defaultMessage="hello" />
+</p>
+```
+
+#### Why
+
+Consistent coding style in JSX and less syntax clutter.
+
+### `prefer-pound-in-plural`
+
+Use `#` in the plural argument to reference the count instead of repeating the argument.
+
+```
+// Bad
+I have {count} {
+  count, plural,
+    one {apple}
+    other {apples}
   }
 }
+// Good
+I have {
+  count, plural,
+    one {# apple}
+    other {# apples}
+  }
+}
+
+// Bad
+I have {
+  count, plural,
+    one {{count} apple}
+    other {{count} apples}
+  }
+}
+// Good
+I have {
+  count, plural,
+    one {# apple}
+    other {# apples}
+  }
+}
+
+// Bad
+I won the {ranking}{
+  count, selectordinal,
+    one {st}
+    two {nd}
+    few {rd}
+    other {th}
+} place.
+// Good
+I won the {ranking}{
+  count, selectordinal,
+    one {#st}
+    two {#nd}
+    few {#rd}
+    other {#th}
+} place.
 ```
+
+#### Why
+
+1. More concise message.
+2. Ensures that the count are correctly formatted as numbers.

@@ -64,6 +64,9 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
     : 'other';
   return n == 1 ? 'one' : 'other';
 }},"locale":"az"},
+{"data":{"categories":{"cardinal":["one","other"],"ordinal":["one","other"]},"fn":function(n, ord) {
+  return n == 1 ? 'one' : 'other';
+}},"locale":"bal"},
 {"data":{"categories":{"cardinal":["one","few","many","other"],"ordinal":["few","other"]},"fn":function(n, ord) {
   var s = String(n).split('.'), t0 = Number(s[0]) == n, n10 = t0 && s[0].slice(-1), n100 = t0 && s[0].slice(-2);
   if (ord) return (n10 == 2 || n10 == 3) && n100 != 12 && n100 != 13 ? 'few' : 'other';
@@ -122,13 +125,15 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
     : v0 && (i10 >= 2 && i10 <= 4) && (i100 < 12 || i100 > 14) || (f10 >= 2 && f10 <= 4) && (f100 < 12 || f100 > 14) ? 'few'
     : 'other';
 }},"locale":"bs"},
-{"data":{"categories":{"cardinal":["one","other"],"ordinal":["one","two","few","other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), v0 = !s[1];
+{"data":{"categories":{"cardinal":["one","many","other"],"ordinal":["one","two","few","other"]},"fn":function(n, ord) {
+  var _n = String(n), se = _n.split(/[ce]/), e = se[1] || 0, c = e, s = String(e ? Number(se[0]) * Math.pow(10, e) : _n).split("."), i = s[0], v0 = !s[1], i1000000 = i.slice(-6);
   if (ord) return (n == 1 || n == 3) ? 'one'
     : n == 2 ? 'two'
     : n == 4 ? 'few'
     : 'other';
-  return n == 1 && v0 ? 'one' : 'other';
+  return n == 1 && v0 ? 'one'
+    : e == 0 && i != 0 && i1000000 == 0 && v0 || (e < 0 || e > 5) ? 'many'
+    : 'other';
 }},"locale":"ca"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   if (ord) return 'other';
@@ -222,9 +227,12 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   if (ord) return 'other';
   return n == 1 ? 'one' : 'other';
 }},"locale":"eo"},
-{"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
+{"data":{"categories":{"cardinal":["one","many","other"],"ordinal":["other"]},"fn":function(n, ord) {
+  var _n = String(n), se = _n.split(/[ce]/), e = se[1] || 0, c = e, s = String(e ? Number(se[0]) * Math.pow(10, e) : _n).split("."), i = s[0], v0 = !s[1], i1000000 = i.slice(-6);
   if (ord) return 'other';
-  return n == 1 ? 'one' : 'other';
+  return n == 1 ? 'one'
+    : e == 0 && i != 0 && i1000000 == 0 && v0 || (e < 0 || e > 5) ? 'many'
+    : 'other';
 }},"locale":"es"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   var s = String(n).split('.'), v0 = !s[1];
@@ -331,12 +339,11 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   if (ord) return 'other';
   return n == 1 ? 'one' : 'other';
 }},"locale":"haw"},
-{"data":{"categories":{"cardinal":["one","two","many","other"],"ordinal":["other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), i = s[0], v0 = !s[1], t0 = Number(s[0]) == n, n10 = t0 && s[0].slice(-1);
+{"data":{"categories":{"cardinal":["one","two","other"],"ordinal":["other"]},"fn":function(n, ord) {
+  var s = String(n).split('.'), i = s[0], v0 = !s[1];
   if (ord) return 'other';
-  return n == 1 && v0 ? 'one'
+  return i == 1 && v0 || i == 0 && !v0 ? 'one'
     : i == 2 && v0 ? 'two'
-    : v0 && (n < 0 || n > 10) && t0 && n10 == 0 ? 'many'
     : 'other';
 }},"locale":"he"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["one","two","few","many","other"]},"fn":function(n, ord) {
@@ -347,6 +354,9 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
     : 'other';
   return n >= 0 && n <= 1 ? 'one' : 'other';
 }},"locale":"hi"},
+{"data":{"categories":{"cardinal":["other"],"ordinal":["other"]},"fn":function(n, ord) {
+  return 'other';
+}},"locale":"hnj"},
 {"data":{"categories":{"cardinal":["one","few","other"],"ordinal":["other"]},"fn":function(n, ord) {
   var s = String(n).split('.'), i = s[0], f = s[1] || '', v0 = !s[1], i10 = i.slice(-1), i100 = i.slice(-2), f10 = f.slice(-1), f100 = f.slice(-2);
   if (ord) return 'other';
@@ -384,23 +394,22 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
 {"data":{"categories":{"cardinal":["other"],"ordinal":["other"]},"fn":function(n, ord) {
   return 'other';
 }},"locale":"ii"},
-{"data":{"categories":{"cardinal":["other"],"ordinal":["other"]},"fn":function(n, ord) {
-  return 'other';
-}},"locale":"in"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   var s = String(n).split('.'), v0 = !s[1];
   if (ord) return 'other';
   return n == 1 && v0 ? 'one' : 'other';
 }},"locale":"io"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), i = s[0], t0 = Number(s[0]) == n, i10 = i.slice(-1), i100 = i.slice(-2);
+  var s = String(n).split('.'), i = s[0], t = (s[1] || '').replace(/0+$/, ''), t0 = Number(s[0]) == n, i10 = i.slice(-1), i100 = i.slice(-2);
   if (ord) return 'other';
-  return t0 && i10 == 1 && i100 != 11 || !t0 ? 'one' : 'other';
+  return t0 && i10 == 1 && i100 != 11 || t % 10 == 1 && t % 100 != 11 ? 'one' : 'other';
 }},"locale":"is"},
-{"data":{"categories":{"cardinal":["one","other"],"ordinal":["many","other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), v0 = !s[1];
+{"data":{"categories":{"cardinal":["one","many","other"],"ordinal":["many","other"]},"fn":function(n, ord) {
+  var _n = String(n), se = _n.split(/[ce]/), e = se[1] || 0, c = e, s = String(e ? Number(se[0]) * Math.pow(10, e) : _n).split("."), i = s[0], v0 = !s[1], i1000000 = i.slice(-6);
   if (ord) return (n == 11 || n == 8 || n == 80 || n == 800) ? 'many' : 'other';
-  return n == 1 && v0 ? 'one' : 'other';
+  return n == 1 && v0 ? 'one'
+    : e == 0 && i != 0 && i1000000 == 0 && v0 || (e < 0 || e > 5) ? 'many'
+    : 'other';
 }},"locale":"it"},
 {"data":{"categories":{"cardinal":["one","two","other"],"ordinal":["other"]},"fn":function(n, ord) {
   if (ord) return 'other';
@@ -408,14 +417,6 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
     : n == 2 ? 'two'
     : 'other';
 }},"locale":"iu"},
-{"data":{"categories":{"cardinal":["one","two","many","other"],"ordinal":["other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), i = s[0], v0 = !s[1], t0 = Number(s[0]) == n, n10 = t0 && s[0].slice(-1);
-  if (ord) return 'other';
-  return n == 1 && v0 ? 'one'
-    : i == 2 && v0 ? 'two'
-    : v0 && (n < 0 || n > 10) && t0 && n10 == 0 ? 'many'
-    : 'other';
-}},"locale":"iw"},
 {"data":{"categories":{"cardinal":["other"],"ordinal":["other"]},"fn":function(n, ord) {
   return 'other';
 }},"locale":"ja"},
@@ -426,11 +427,6 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   if (ord) return 'other';
   return n == 1 ? 'one' : 'other';
 }},"locale":"jgo"},
-{"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), v0 = !s[1];
-  if (ord) return 'other';
-  return n == 1 && v0 ? 'one' : 'other';
-}},"locale":"ji"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   if (ord) return 'other';
   return n == 1 ? 'one' : 'other';
@@ -601,7 +597,7 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   var s = String(n).split('.'), v0 = !s[1], t0 = Number(s[0]) == n, n100 = t0 && s[0].slice(-2);
   if (ord) return n == 1 ? 'one' : 'other';
   return n == 1 && v0 ? 'one'
-    : !v0 || n == 0 || (n100 >= 2 && n100 <= 19) ? 'few'
+    : !v0 || n == 0 || n != 1 && (n100 >= 1 && n100 <= 19) ? 'few'
     : 'other';
 }},"locale":"mo"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["one","two","few","other"]},"fn":function(n, ord) {
@@ -615,11 +611,12 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   if (ord) return n == 1 ? 'one' : 'other';
   return 'other';
 }},"locale":"ms"},
-{"data":{"categories":{"cardinal":["one","few","many","other"],"ordinal":["other"]},"fn":function(n, ord) {
+{"data":{"categories":{"cardinal":["one","two","few","many","other"],"ordinal":["other"]},"fn":function(n, ord) {
   var s = String(n).split('.'), t0 = Number(s[0]) == n, n100 = t0 && s[0].slice(-2);
   if (ord) return 'other';
   return n == 1 ? 'one'
-    : n == 0 || (n100 >= 2 && n100 <= 10) ? 'few'
+    : n == 2 ? 'two'
+    : n == 0 || (n100 >= 3 && n100 <= 10) ? 'few'
     : (n100 >= 11 && n100 <= 19) ? 'many'
     : 'other';
 }},"locale":"mt"},
@@ -736,15 +733,19 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   if (ord) return 'other';
   return n == 1 ? 'one' : 'other';
 }},"locale":"ps"},
-{"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), v0 = !s[1];
+{"data":{"categories":{"cardinal":["one","many","other"],"ordinal":["other"]},"fn":function(n, ord) {
+  var _n = String(n), se = _n.split(/[ce]/), e = se[1] || 0, c = e, s = String(e ? Number(se[0]) * Math.pow(10, e) : _n).split("."), i = s[0], v0 = !s[1], i1000000 = i.slice(-6);
   if (ord) return 'other';
-  return n == 1 && v0 ? 'one' : 'other';
+  return n == 1 && v0 ? 'one'
+    : e == 0 && i != 0 && i1000000 == 0 && v0 || (e < 0 || e > 5) ? 'many'
+    : 'other';
 }},"locale":"pt-PT"},
-{"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), i = s[0];
+{"data":{"categories":{"cardinal":["one","many","other"],"ordinal":["other"]},"fn":function(n, ord) {
+  var _n = String(n), se = _n.split(/[ce]/), e = se[1] || 0, c = e, s = String(e ? Number(se[0]) * Math.pow(10, e) : _n).split("."), i = s[0], v0 = !s[1], i1000000 = i.slice(-6);
   if (ord) return 'other';
-  return (i == 0 || i == 1) ? 'one' : 'other';
+  return (i == 0 || i == 1) ? 'one'
+    : e == 0 && i != 0 && i1000000 == 0 && v0 || (e < 0 || e > 5) ? 'many'
+    : 'other';
 }},"locale":"pt"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   if (ord) return 'other';
@@ -754,7 +755,7 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   var s = String(n).split('.'), v0 = !s[1], t0 = Number(s[0]) == n, n100 = t0 && s[0].slice(-2);
   if (ord) return n == 1 ? 'one' : 'other';
   return n == 1 && v0 ? 'one'
-    : !v0 || n == 0 || (n100 >= 2 && n100 <= 19) ? 'few'
+    : !v0 || n == 0 || n != 1 && (n100 >= 1 && n100 <= 19) ? 'few'
     : 'other';
 }},"locale":"ro"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
@@ -791,10 +792,12 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
   if (ord) return (n == 11 || n == 8 || n == 80 || n == 800) ? 'many' : 'other';
   return n == 1 && v0 ? 'one' : 'other';
 }},"locale":"sc"},
-{"data":{"categories":{"cardinal":["one","other"],"ordinal":["many","other"]},"fn":function(n, ord) {
-  var s = String(n).split('.'), v0 = !s[1];
+{"data":{"categories":{"cardinal":["one","many","other"],"ordinal":["many","other"]},"fn":function(n, ord) {
+  var _n = String(n), se = _n.split(/[ce]/), e = se[1] || 0, c = e, s = String(e ? Number(se[0]) * Math.pow(10, e) : _n).split("."), i = s[0], v0 = !s[1], i1000000 = i.slice(-6);
   if (ord) return (n == 11 || n == 8 || n == 80 || n == 800) ? 'many' : 'other';
-  return n == 1 && v0 ? 'one' : 'other';
+  return n == 1 && v0 ? 'one'
+    : e == 0 && i != 0 && i1000000 == 0 && v0 || (e < 0 || e > 5) ? 'many'
+    : 'other';
 }},"locale":"scn"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   if (ord) return 'other';
@@ -976,6 +979,9 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
 {"data":{"categories":{"cardinal":["other"],"ordinal":["other"]},"fn":function(n, ord) {
   return 'other';
 }},"locale":"to"},
+{"data":{"categories":{"cardinal":["other"],"ordinal":["other"]},"fn":function(n, ord) {
+  return 'other';
+}},"locale":"tpi"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   if (ord) return 'other';
   return n == 1 ? 'one' : 'other';
@@ -1001,6 +1007,9 @@ if (Intl.PluralRules && typeof Intl.PluralRules.__addLocaleData === 'function') 
     : v0 && i10 == 0 || v0 && (i10 >= 5 && i10 <= 9) || v0 && (i100 >= 11 && i100 <= 14) ? 'many'
     : 'other';
 }},"locale":"uk"},
+{"data":{"categories":{"cardinal":["other"],"ordinal":["other"]},"fn":function(n, ord) {
+  return 'other';
+}},"locale":"und"},
 {"data":{"categories":{"cardinal":["one","other"],"ordinal":["other"]},"fn":function(n, ord) {
   var s = String(n).split('.'), v0 = !s[1];
   if (ord) return 'other';

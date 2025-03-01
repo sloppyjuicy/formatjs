@@ -1,8 +1,8 @@
-import {DateTimeFormat} from './'
 import {defineProperty} from '@formatjs/ecma402-abstract'
+import {DateTimeFormat} from './'
 import {
-  toLocaleString as _toLocaleString,
   toLocaleDateString as _toLocaleDateString,
+  toLocaleString as _toLocaleString,
   toLocaleTimeString as _toLocaleTimeString,
 } from './src/to_locale_string'
 
@@ -10,24 +10,43 @@ defineProperty(Intl, 'DateTimeFormat', {value: DateTimeFormat})
 defineProperty(Date.prototype, 'toLocaleString', {
   value: function toLocaleString(
     locales?: string | string[],
-    options?: Intl.DateTimeFormatOptions
+    options: Intl.DateTimeFormatOptions = {
+      dateStyle: 'short',
+      timeStyle: 'medium',
+    }
   ) {
-    return _toLocaleString(this, locales, options)
+    try {
+      return _toLocaleString(this, locales, options)
+    } catch (error) {
+      return 'Invalid Date'
+    }
   },
 })
 defineProperty(Date.prototype, 'toLocaleDateString', {
   value: function toLocaleDateString(
     locales?: string | string[],
-    options?: Intl.DateTimeFormatOptions
+    options: Intl.DateTimeFormatOptions = {
+      dateStyle: 'short',
+    }
   ) {
-    return _toLocaleDateString(this, locales, options)
+    try {
+      return _toLocaleDateString(this, locales, options)
+    } catch (error) {
+      return 'Invalid Date'
+    }
   },
 })
 defineProperty(Date.prototype, 'toLocaleTimeString', {
   value: function toLocaleTimeString(
     locales?: string | string[],
-    options?: Intl.DateTimeFormatOptions
+    options: Intl.DateTimeFormatOptions = {
+      timeStyle: 'medium',
+    }
   ) {
-    return _toLocaleTimeString(this, locales, options)
+    try {
+      return _toLocaleTimeString(this, locales, options)
+    } catch (error) {
+      return 'Invalid Date'
+    }
   },
 })

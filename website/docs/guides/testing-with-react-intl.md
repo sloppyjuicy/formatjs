@@ -21,10 +21,10 @@ $ mocha --recursive test/
 
 #### Browser
 
-You can either load the polyfill in the browser from `node_modules` or use the [polyfill.io](https://cdn.polyfill.io/v2/docs/) service from the Financial Times:
+You can either load the polyfill in the browser from `node_modules` or use the [polyfill-fastly.io](https://polyfill-fastly.io/v2/docs/) service from the Financial Times:
 
 ```html
-<script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=Intl,Intl.~locale.en-US"></script>
+<script src="https://polyfill-fastly.io/v2/polyfill.min.js?features=Intl,Intl.~locale.en-US"></script>
 ```
 
 ## Shallow Rendering
@@ -314,7 +314,7 @@ export {render}
 
 ```jsx
 import React from 'react'
-import '@testing-library/jest-dom/extend-expect'
+import '@​testing-library/jest-dom/jest-globals'
 // We're importing from our own created test-utils and not RTL's
 import {render, screen} from '../test-utils.js'
 import {FormattedDate} from 'react-intl'

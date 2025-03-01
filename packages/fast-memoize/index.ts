@@ -13,8 +13,8 @@ interface CacheCreateFunc<K, V> {
 }
 
 interface DefaultCache<K, V> {
-  get(key: K): V
-  set(key: K, value: V): void
+  get(key: K): V | undefined
+  set(key: K, value: V | undefined): void
 }
 
 export type Serializer = (args: any[]) => string
@@ -34,7 +34,10 @@ export interface MemoizeFunc<F extends Func> {
   (fn: F, options?: Options<F>): F
 }
 
-export default function memoize<F extends Func>(fn: F, options?: Options<F>) {
+export function memoize<F extends Func>(
+  fn: F,
+  options?: Options<F>
+): F | ((arg: any) => any) {
   const cache = options && options.cache ? options.cache : cacheDefault
 
   const serializer =
@@ -163,24 +166,24 @@ const serializerDefault: Serializer = function (): string {
 // Cache
 //
 
-function ObjectWithoutPrototypeCache(this: any) {
-  this.cache = Object.create(null) as Record<string, any>
-}
+class ObjectWithoutPrototypeCache {
+  private cache: Record<string, any>
 
-ObjectWithoutPrototypeCache.prototype.get = function (key: string) {
-  return this.cache[key]
-}
+  constructor() {
+    this.cache = Object.create(null) as Record<string, any>
+  }
 
-ObjectWithoutPrototypeCache.prototype.set = function <T>(
-  key: string,
-  value: T
-): void {
-  this.cache[key] = value
+  get(key: string) {
+    return this.cache[key]
+  }
+
+  set<T>(key: string, value: T): void {
+    this.cache[key] = value
+  }
 }
 
 const cacheDefault: Cache<any, any> = {
   create: function create() {
-    // @ts-ignore
     return new ObjectWithoutPrototypeCache()
   },
 }

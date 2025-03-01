@@ -1,6 +1,6 @@
 {
   "name": "react-intl",
-  "version": "5.20.11",
+  "version": "7.1.6",
   "description": "Internationalize React apps. This library provides React components and an API to format dates, numbers, and strings, including pluralization and handling translations.",
   "keywords": [
     "intl",
@@ -115,7 +115,7 @@
     "zouxuoz <zouxuoz@gmail.com>"
   ],
   "license": "BSD-3-Clause",
-  "homepage": "https://formatjs.io/docs/react-intl",
+  "homepage": "https://formatjs.github.io/docs/react-intl",
   "bugs": {
     "url": "https://github.com/formatjs/formatjs/issues"
   },
@@ -128,20 +128,18 @@
   "types": "index.d.ts",
   "sideEffects": false,
   "dependencies": {
-    "@formatjs/ecma402-abstract": "1.9.8",
-    "@formatjs/icu-messageformat-parser": "2.0.11",
-    "@formatjs/intl": "1.14.1",
-    "@formatjs/intl-displaynames": "5.2.3",
-    "@formatjs/intl-listformat": "6.3.3",
-    "@types/hoist-non-react-statics": "^3.3.1",
-    "@types/react": "16 || 17",
-    "hoist-non-react-statics": "^3.3.2",
-    "intl-messageformat": "9.9.1",
-    "tslib": "^2.1.0"
+    "@formatjs/ecma402-abstract": "workspace:*",
+    "@formatjs/icu-messageformat-parser": "workspace:*",
+    "@formatjs/intl": "workspace:*",
+    "@types/hoist-non-react-statics": "3",
+    "@types/react": "16 || 17 || 18 || 19",
+    "hoist-non-react-statics": "3",
+    "intl-messageformat": "workspace:*",
+    "tslib": "2"
   },
   "peerDependencies": {
-    "react": "^16.3.0 || 17",
-    "typescript": "^4.2"
+    "react": "^16.6.0 || 17 || 18 || 19",
+    "typescript": "5"
   },
   "peerDependenciesMeta": {
     "typescript": {
